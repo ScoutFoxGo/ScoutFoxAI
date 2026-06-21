@@ -28,6 +28,8 @@ import decisionRouter from "./decision/routes.js";
 import matchRouter from "./match/routes.js";
 import personaRouter from "./persona/routes.js";
 import destinationRouter from "./destination/routes.js";
+import modesRouter from "./modes/routes.js";
+import harmonyRouter from "./harmony/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -62,6 +64,8 @@ app.get("/api", (_req, res) => {
       match: ["POST /api/match/score", "POST /api/match/predict", "POST /api/match/behavior", "POST /api/match/rank"],
       persona: ["POST /api/persona/classify"],
       destination: ["GET /api/destination/:name/intel", "POST /api/destination/compare"],
+      modes: ["GET /api/modes", "POST /api/modes/:mode/route"],
+      harmony: ["POST /api/harmony/decide"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
@@ -139,6 +143,11 @@ app.use("/api/match", matchRouter);
 // Intelligence (Competitive Intelligence -> Destination Intelligence).
 app.use("/api/persona", personaRouter);
 app.use("/api/destination", destinationRouter);
+
+// Scout Modes (Mom Route / Dad Mode / Grandparent Mode) and Scout Harmony
+// (group decisions).
+app.use("/api/modes", modesRouter);
+app.use("/api/harmony", harmonyRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

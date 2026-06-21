@@ -125,6 +125,17 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## Scout Modes & Scout Harmony (`server/modes/`, `server/harmony/`)
+
+- **Scout Modes** — `GET /api/modes`, `POST /api/modes/:mode/route` — one set of
+  options seen through a mode's lens: **Mom Route™** (bathrooms/parking/shade/
+  short walks/rest), **Dad Mode™** (adventure, fun per hour), **Grandparent
+  Mode™** (accessibility/comfort/rest). Returns a day route with a per‑stop reason.
+- **Scout Harmony™** — `POST /api/harmony/decide` — group decisions across several
+  people (`participants` with prefs or `familyProfileId`): returns **Best Fit**,
+  a **Compromise** (makes the least‑happy person happiest), Budget, and Premium,
+  with a per‑person satisfaction breakdown.
+
 ## The Lickly framework: Audience → Insights → Recommendation → Execution → Measurement
 
 Scout's decision-intelligence loop, mapped to modules:
