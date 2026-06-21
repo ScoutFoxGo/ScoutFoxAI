@@ -53,6 +53,29 @@ keep the secret in the app where it belongs.
 
 ---
 
+## If passwords were already written into a shared "credentials" doc
+
+Treat every real password in that file as **exposed** — you can't un‑share a
+document. Do this in order:
+
+1. **Protect the Gmail first** (`meghan.hotchkiss@gmail.com`) — it's the master
+   key to IONOS, Google Cloud, Firebase, and Play Console:
+   - New unique password.
+   - 2FA via an **authenticator app** (Google Authenticator/Authy), not SMS.
+   - Google Account → Security → check **Recovery email/phone** and **"3rd‑party
+     access"** for anything you don't recognize; remove it.
+   - Gmail → Settings → **Forwarding and POP/IMAP** → confirm no unknown
+     forwarding address was added.
+   - Review **recent security activity / signed‑in devices**; sign out unknowns.
+2. **Rotate every real password** that appeared in the doc (AWS, Squarespace,
+   Google Cloud, and any others) — change them now, even if nothing looks wrong.
+3. **Stop sharing the doc.** Delete shared copies. Replace it with invite‑based
+   access (the table above) — that needs no password file at all.
+4. **Never forward a verification / 2FA code to anyone.** A code request is the
+   one instruction to refuse outright; no platform's delegated access needs it.
+5. Where the app (not a person) needs access, switch to **API keys / service
+   accounts in env vars** that you can rotate or revoke independently.
+
 ## Red flags to watch for
 
 - "I need your **Gmail password** / your email login." → Never required. Decline.
