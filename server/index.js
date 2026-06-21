@@ -58,8 +58,9 @@ app.use(express.json({ limit: "2mb" }));
 // SCOUTFOX_API_KEY and every /api route (except /api/health) requires an
 // `X-API-Key` (or `Authorization: Bearer`) header. Unset = open (dev).
 const API_KEY = process.env.SCOUTFOX_API_KEY;
+const OPEN_PATHS = new Set(["/health", "/status", "/"]); // reachable without a key (monitoring)
 app.use("/api", (req, res, next) => {
-  if (!API_KEY || req.path === "/health" || req.path === "/") return next();
+  if (!API_KEY || OPEN_PATHS.has(req.path)) return next();
   const sent = req.get("x-api-key") || (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (sent === API_KEY) return next();
   res.status(401).json({ error: "missing or invalid API key" });
@@ -92,7 +93,7 @@ app.get("/api", (_req, res) => {
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
-      health: ["GET /api/health"],
+      health: ["GET /api/health", "GET /api/status"],
     },
     docs: "See HANDOFF.md in the repository.",
   });
@@ -100,6 +101,41 @@ app.get("/api", (_req, res) => {
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, anthropic: Boolean(process.env.ANTHROPIC_API_KEY) });
+});
+
+// A one-glance "is it really live?" report — which keys were picked up and what's
+// still mock. Used by the boot log too. No key required (handy for monitoring).
+function integrationStatus() {
+  const has = (k) => Boolean(process.env[k]);
+  const stripe = !process.env.STRIPE_SECRET_KEY ? "mock" : process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE" : "test";
+  return {
+    language_anthropic: has("ANTHROPIC_API_KEY") ? "live" : "mock",
+    scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL") ? "live" : "sample-seed",
+    flights_stays_duffel: has("DUFFEL_API_KEY") ? "live" : "mock",
+    payments_stripe: stripe,
+    activities_viator: has("VIATOR_API_KEY") ? "live" : "mock",
+    activities_getyourguide: has("GETYOURGUIDE_API_KEY") ? "live" : "mock",
+    cruises: has("CRUISE_API_KEY") ? "live" : "mock",
+    places_google: has("GOOGLE_PLACES_API_KEY") ? "live" : "mock",
+    signals_reddit: has("REDDIT_API_KEY") ? "live" : "mock",
+  };
+}
+
+app.get("/api/status", (_req, res) => {
+  const integrations = integrationStatus();
+  const liveCount = Object.values(integrations).filter((v) => v === "live" || v === "test" || v === "LIVE").length;
+  res.json({
+    name: "ScoutFoxAI",
+    version: "1.0",
+    mode: /^(1|true|yes|on)$/i.test(process.env.LIVE_ONLY || "") ? "LIVE_ONLY" : "dev",
+    allow_live_payments: process.env.ALLOW_LIVE_PAYMENTS === "true",
+    env_file_loaded: envFile || null,
+    env_vars_loaded: loadedCount,
+    integrations,
+    live_count: liveCount,
+    all_live: liveCount === Object.keys(integrations).length,
+    note: liveCount ? `${liveCount} integration(s) live; the rest run on mock data until you add their keys (see API_KEYS.md).` : "Running fully on mock data. Add keys to server/.env to go live.",
+  });
 });
 
 app.get("/api/models", (_req, res) => {
@@ -235,20 +271,7 @@ app.listen(PORT, () => {
   if (envFile) console.log(`  env: loaded ${loadedCount} var(s) from ${envFile}`);
 
   // Live-integration summary, so you can confirm which keys were picked up in the
-  // real world. "live" = a key is present; absent ones stay in mock mode.
-  const has = (k) => Boolean(process.env[k]);
-  const stripeMode = !process.env.STRIPE_SECRET_KEY ? "mock" : process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE 💳" : "test";
-  const live = {
-    anthropic: has("ANTHROPIC_API_KEY"),
-    scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL"),
-    duffel_flights_stays: has("DUFFEL_API_KEY"),
-    stripe_payments: stripeMode,
-    viator: has("VIATOR_API_KEY"),
-    getyourguide: has("GETYOURGUIDE_API_KEY"),
-    cruises: has("CRUISE_API_KEY"),
-    google_places: has("GOOGLE_PLACES_API_KEY"),
-    reddit_signals: has("REDDIT_API_KEY"),
-  };
-  const liveList = Object.entries(live).filter(([, v]) => v && v !== "mock").map(([k, v]) => (v === true ? k : `${k}:${v}`));
-  console.log(`  integrations live: ${liveList.length ? liveList.join(", ") : "none yet (running on mock data — add keys in server/.env)"}`);
+  // real world. Mirrors GET /api/status. "mock"/"sample-seed" = no key yet.
+  const live = Object.entries(integrationStatus()).filter(([, v]) => v !== "mock" && v !== "sample-seed").map(([k, v]) => `${k}:${v}`);
+  console.log(`  integrations live: ${live.length ? live.join(", ") : "none yet (running on mock data — add keys in server/.env)"}`);
 });
