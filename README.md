@@ -125,6 +125,21 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## Inventory & booking (`server/flights/`, `server/inventory/`, `server/wallet/`)
+
+The Scout brain handles the whole trip, not just flights:
+
+- **Flights** — `POST /api/flights/search` (Duffel) + booking flow (`offer` →
+  `payment-intent` → `confirm`), test-mode with a live-key safety guard. See
+  `BOOKING.md`.
+- **Hotels / Cruises / Activities** — `POST /api/inventory/search {type, ...}` —
+  one normalized shape across categories; live with each supplier's key (Duffel
+  Stays / Viator / cruise aggregator), mock otherwise.
+- **Scout Wallet™ (deals)** — `POST /api/wallet/:userId {memberships:[...]}` then
+  pass `userId` to any inventory search: memberships/passes (AAA, AARP, zoo/
+  museum/park passes, military, teacher) are applied — matching items shown as
+  **included (free)** or **discounted**, and floated to the top. In-house.
+
 ## Scout Modes & Scout Harmony (`server/modes/`, `server/harmony/`)
 
 - **Scout Modes** — `GET /api/modes`, `POST /api/modes/:mode/route` — one set of
