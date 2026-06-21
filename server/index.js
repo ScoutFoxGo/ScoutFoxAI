@@ -39,6 +39,17 @@ const ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim
 app.use(cors(ORIGINS.length ? { origin: ORIGINS } : {}));
 app.use(express.json({ limit: "2mb" }));
 
+// Optional API-key auth for the dev team's server-to-server calls. Set
+// SCOUTFOX_API_KEY and every /api route (except /api/health) requires an
+// `X-API-Key` (or `Authorization: Bearer`) header. Unset = open (dev).
+const API_KEY = process.env.SCOUTFOX_API_KEY;
+app.use("/api", (req, res, next) => {
+  if (!API_KEY || req.path === "/health") return next();
+  const sent = req.get("x-api-key") || (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (sent === API_KEY) return next();
+  res.status(401).json({ error: "missing or invalid API key" });
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, anthropic: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
