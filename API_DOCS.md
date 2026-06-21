@@ -23,7 +23,9 @@ links. Nothing is required — the app runs on mock data until a key is present.
 | **Stripe** | `STRIPE_SECRET_KEY`, `ALLOW_LIVE_PAYMENTS` | Checkout payments (PaymentIntents). Use `sk_test_…` first | https://docs.stripe.com · PaymentIntents: https://docs.stripe.com/api/payment_intents | https://dashboard.stripe.com/apikeys |
 | **Viator** | `VIATOR_API_KEY` | Activities / tours inventory | https://docs.viator.com | https://www.viator.com/partner/home |
 | **GetYourGuide** | `GETYOURGUIDE_API_KEY` | Activities / experiences (alternate) | https://code.getyourguide.com | https://partner.getyourguide.com |
-| **PHPtravels** | `PHPTRAVELS_API_KEY` (+ your install base URL) | Activities/inventory from **your self‑hosted PHPtravels** install | https://docs.phptravels.com · Download/license: https://docs.phptravels.com/startup/download-product | (self‑hosted — see note below) |
+| **Booking.com** | `BOOKING_AFFILIATE_ID`, `BOOKING_API_KEY` | Hotels/stays via the Booking.com affiliate / Demand API *(you have an affiliate account)* | https://developers.booking.com · Affiliate: https://www.booking.com/affiliate-program/v2/index.html | https://admin.booking.com (affiliate dashboard) |
+| **Expedia** | `EXPEDIA_API_KEY`, `EXPEDIA_SHARED_SECRET` | Hotels/flights/activities via Expedia Group / EPS Rapid *(you have an affiliate account)* | https://developer.expediagroup.com · Rapid: https://developer.expediagroup.com/products/rapid | https://www.expediagroup.com/partner-solutions |
+| **PHPtravels** | `PHPTRAVELS_BASE_URL`, `PHPTRAVELS_API_KEY` | Activities/inventory from **your self‑hosted PHPtravels** install | https://docs.phptravels.com · Download/license: https://docs.phptravels.com/startup/download-product | (self‑hosted — see note below) |
 | **Cruise inventory** | `CRUISE_API_KEY` | Cruise search (provider TBD — e.g. Widgety / Traveltek) | provider‑specific | provider‑specific |
 | **Kayak** | `KAYAK_API_KEY` | Optional alternate flight/price source | https://www.kayak.com/affiliate | affiliate program |
 
@@ -56,17 +58,21 @@ purchase page shows a *Download Product* button + a *License Key* used to activa
 the install). That license key is a **secret** — keep it private; it is **not** the
 same as an API key, and it must **never** be committed to this repo.
 
-To wire ScoutFoxAI's `phptravels` adapter (`server/booking/adapters.js`) to it:
-1. **Install & host** PHPtravels per https://docs.phptravels.com (activate with your
-   license key on the server, not in this repo).
-2. Note your install's **base URL** (e.g. `https://book.yourdomain.com`) and create
-   **API credentials** inside the PHPtravels admin.
-3. Put those in `server/.env` — the adapter needs both the base URL and an API key.
-   (Today the adapter reads `PHPTRAVELS_API_KEY`; when you have the install details,
-   we'll add the base‑URL env var and the real request mapping to its API.)
+**To do (you have the license number):**
+1. **Download** PHPtravels from your purchase page (*Download Product → Download Now*)
+   and **install it on your computer / server** per https://docs.phptravels.com.
+2. **Activate** the install with your **License Key** *on that machine* — keep the
+   key private; never paste it into chat or commit it to this repo.
+3. Note your install's **base URL** (e.g. `https://book.yourdomain.com` or
+   `http://localhost` while testing) and create **API credentials** in the
+   PHPtravels admin.
+4. Put both in `server/.env` as `PHPTRAVELS_BASE_URL` and `PHPTRAVELS_API_KEY`.
+   (The adapter's real request mapping to the PHPtravels API gets added once we have
+   the install's base URL + endpoints to point at.)
 
-So: the **license key** activates the software; the **API key + base URL** from the
-running install are what ScoutFoxAI calls. Two different things.
+So there are **two different secrets**: the **license key** activates the software
+on your machine; the **API key + base URL** from the running install are what
+ScoutFoxAI calls. Only the API key + base URL go in `.env`.
 
 ---
 
