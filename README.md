@@ -125,6 +125,21 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## Finder engines (`server/finder/`)
+
+Place finders that stay **intelligent** — every result is ranked by the Scout
+Match Score (match % + confidence band + reasons), personalized to the family +
+learned behavior. `POST /api/finder/:category { location, familyProfileId?,
+userId?, criteria?, weather? }`:
+
+- **Park Finder**, **Playground Finder**, **Beach Finder™** (criteria like
+  "toddlers / shelling / sunset / quiet / accessible"), **Restaurant Finder**,
+  **Cooling Off Finder™**.
+- **Heat trigger** — on hot weather any finder auto‑switches to Cooling Off
+  (splash pads / pools / springs / indoor).
+- Places are live with `GOOGLE_PLACES_API_KEY` (mock otherwise); the ranking
+  intelligence is in‑house.
+
 ## Inventory & booking (`server/flights/`, `server/inventory/`, `server/wallet/`)
 
 The Scout brain handles the whole trip, not just flights:
