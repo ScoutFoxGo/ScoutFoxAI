@@ -10,7 +10,10 @@
 import { understand, reason, compose, recommend, applyFeedback } from "../decision/engine.js";
 import { gatherOptions } from "../booking/index.js";
 import { classify } from "../persona/classify.js";
+import { compare as compareDestinations } from "../destination/intel.js";
 import { recordOutcome } from "../learning/loop.js";
+import { createCartFromPlan } from "../booking/cart.js";
+import { savePlan } from "../plans/store.js";
 import { invokeLLM } from "../llm.js";
 import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
 import { getSession, saveSession, resetSession, pushMessage } from "./session.js";
@@ -25,7 +28,8 @@ const STOP = new Set(
    "spend stay staying have having make making check want need like love think thinking figure sort somewhere anywhere place places " +
    "something nice warm cold cheap fun " +
    "grandma grandpa grandparent grandparents nana papa mom dad mum mother father toddler toddlers baby infant newborn " +
-   "teen teens wife husband partner spouse everyone adults adult couple kid children")
+   "teen teens wife husband partner spouse everyone adults adult couple kid children " +
+   "compare vs versus between or either")
     .split(" ")
 );
 
@@ -78,9 +82,20 @@ function readParty(text) {
 }
 
 const REFINE_RE = /(cheap|cheaper|budget|fancier|nicer|splurge|upgrade|relax|slower|slow down|more|busy|packed|shorter|fewer|longer|extra day|add a day|accessible|stroller|wheelchair|step-free)/i;
-const BOOK_RE = /\b(book|reserve|purchase|buy|checkout)\b/i;
+const BOOK_RE = /\b(book|reserve|purchase|buy|checkout|check out)\b/i;
+const SHARE_RE = /\b(share|save|send|link|export)\b/i;
 const RESET_RE = /(start over|new trip|reset|plan another|different trip)/i;
-const QUESTION_RE = /\b(what|where|when|why|how|which|should|can you|is it|are there)\b.*\?|\?$/i;
+const COMPARE_RE = /\bor\b|\bvs\.?\b|\bversus\b|\bcompare\b|\bbetween\b/i;
+
+// Pull two candidate destinations out of "A or B" / "compare A and B" / "A vs B".
+function readTwoDestinations(text) {
+  const m = text.match(/\b([A-Za-z][A-Za-z .'-]{1,30}?)\s+(?:or|vs\.?|versus|and)\s+([A-Za-z][A-Za-z .'-]{1,30})\b/i);
+  if (!m) return null;
+  const clean = (s) => titlecase(s.trim().split(/\s+/).filter((w) => !STOP.has(w.toLowerCase())).slice(0, 3).join(" "));
+  const a = clean(m[1]), b = clean(m[2]);
+  if (a && b && a.toLowerCase() !== b.toLowerCase()) return [a, b];
+  return null;
+}
 
 // Merge any slots the latest message revealed into the running intent.
 function applySlots(intent, text) {
@@ -129,8 +144,10 @@ async function buildPlan(intent) {
 // Suggestion chips per stage — the assistant always offers a next move.
 function suggestions(stage) {
   if (stage === "planned" || stage === "refining")
-    return ["Make it cheaper", "More relaxed", "Add a day", "Rainy-day backups", "Plan another trip"];
-  return ["A relaxed weekend in San Diego with a toddler", "3 adventurous days in Orlando", "A budget beach trip with grandparents"];
+    return ["Make it cheaper", "More relaxed", "Add a day", "Book it", "Share this plan"];
+  if (stage === "booking")
+    return ["Plan another trip", "Share this plan"];
+  return ["A relaxed weekend in San Diego with a toddler", "Orlando or Miami with kids?", "A budget beach trip with grandparents"];
 }
 
 // Deterministic reply text (offline-safe). data carries plan/recommendation.
@@ -150,10 +167,19 @@ function draftReply(kind, s, data = {}) {
     const pick = best ? ` Top pick: ${best.title} — ${best.why_fits}` : "";
     const cost = total ? ` Estimated all-in ~$${total}.` : "";
     const conf = data.plan?.confidence ? ` (confidence: ${data.plan.confidence})` : "";
-    return `${lead}${pick}${cost}${conf} Want me to tweak the budget, pace, or length — or pull up rainy-day backups?`;
+    // Gentle nudge about an assumption the user hasn't pinned down yet.
+    let nudge = " Want me to tweak the budget, pace, or length, book it, or share it?";
+    if (kind === "planned" && !i.budget) nudge = ` I went with a medium budget — say "cheaper" or "fancier" to change it, or "book it" when you're happy.`;
+    else if (kind === "planned" && !i.dates) nudge = ` Pick your dates whenever you're ready — I can also book it or share it as a link.`;
+    return `${lead}${pick}${cost}${conf}${nudge}`;
+  }
+  if (kind === "compared") {
+    return `${data.recommendation} Want me to build the full plan for ${data.winner}?`;
   }
   if (kind === "booking")
-    return "Booking runs through our travel partners (flights via Duffel, payments via Stripe). I can hand off the selected items to checkout — say the word and I'll prep them.";
+    return `Done — I've prepped a checkout for your ${i.destination} trip (~$${data.cart?.total}). Flights book through Duffel and payment runs through Stripe in test mode. Open the checkout to confirm travelers and finish: ${data.checkout_url}`;
+  if (kind === "shared")
+    return `Saved! Here's a shareable link to this plan: ${data.share_url} — anyone with it can view the itinerary.`;
   return "Tell me a bit more and I'll shape the plan around it.";
 }
 
@@ -205,8 +231,33 @@ export async function handleMessage(sessionId, message, ctx = {}) {
 
   let kind, data = {};
 
+  // Share an existing plan as a link.
+  if (s.plan && SHARE_RE.test(text) && !REFINE_RE.test(text)) {
+    const rec = savePlan(summarizePlan(s.plan), { destination: s.intent.destination, segment: s.intent.segment });
+    kind = "shared";
+    data = { share_url: `/plan.html?id=${rec.id}`, plan_id: rec.id };
+  }
+  // Book an existing plan -> build a checkout cart.
+  else if (s.plan && BOOK_RE.test(text)) {
+    const cart = createCartFromPlan(s.plan, { sessionId: s.id, destination: s.intent.destination });
+    s.stage = "booking";
+    kind = "booking";
+    data = { cart, checkout_url: `/checkout.html?cart=${cart.id}` };
+  }
+  // Compare two destinations before committing (only pre-plan).
+  else if (!s.plan && COMPARE_RE.test(text) && readTwoDestinations(text)) {
+    const [a, b] = readTwoDestinations(text);
+    const cmp = await compareDestinations(a, b, { familyProfileId: s.intent.familyProfileId });
+    s.intent.destination = cmp.options.find((o) => o.family_fit.band === cmp.confidence)?.destination || a;
+    // winner = the one the recommendation names
+    const winner = cmp.options.reduce((w, o) => (o.family_fit.score > (w?.family_fit.score ?? -1) ? o : w), null);
+    s.intent.destination = winner?.destination || a;
+    s.stage = "gathering";
+    kind = "compared";
+    data = { recommendation: cmp.recommendation, winner: s.intent.destination };
+  }
   // Already have a plan and the user asked to change it -> refine.
-  if ((s.stage === "planned" || s.stage === "refining") && REFINE_RE.test(text)) {
+  else if ((s.stage === "planned" || s.stage === "refining") && REFINE_RE.test(text)) {
     const before = { budget: s.intent.budget, pace: s.intent.pace, days: s.intent.days };
     const next = applyFeedback({ ...s.intent, must_haves: s.intent.must_haves || [], hard_nos: s.intent.hard_nos || [] }, text);
     s.intent.budget = next.budget; s.intent.pace = next.pace; s.intent.days = next.days; s.intent.must_haves = next.must_haves;
@@ -219,9 +270,6 @@ export async function handleMessage(sessionId, message, ctx = {}) {
     if (before.days !== s.intent.days) chg.push(`${s.intent.days} days`);
     kind = "refined";
     data = { plan, recommendation: plan.recommendation, changed: chg.join(", ") };
-  } else if (BOOK_RE.test(text) && s.plan) {
-    kind = "booking";
-    s.stage = "booking";
   } else if (!s.intent.destination) {
     kind = "need_destination";
     s.stage = "gathering";
@@ -274,6 +322,8 @@ function respond(s, reply, data = {}) {
     intent: s.intent,
     plan: summarizePlan(s.plan),
     recommendation: data.recommendation || s.plan?.recommendation || null,
+    checkout_url: data.checkout_url || null,
+    share_url: data.share_url || null,
     suggestions: suggestions(s.stage),
   };
 }

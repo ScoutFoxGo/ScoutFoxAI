@@ -99,6 +99,12 @@ function renderPlan(plan, rec){
   d.innerHTML=html; feed.appendChild(d); scroll();
 }
 
+function renderAction(url, label){
+  const d=document.createElement("div"); d.style.margin="6px 0 6px 40px";
+  d.innerHTML=`<a href="${url}" target="_blank" style="display:inline-block;background:var(--fox);color:#fff;border-radius:10px;padding:10px 16px;font-weight:600;text-decoration:none;font-size:13.5px">${label}</a>`;
+  feed.appendChild(d); scroll();
+}
+
 function renderChips(suggestions){
   const old=document.getElementById("chips"); if(old) old.remove();
   if(!suggestions||!suggestions.length) return;
@@ -120,7 +126,9 @@ async function send(){
     const data = await r.json(); rmTyping();
     sessionId = data.sessionId;
     addMsg("scout", data.reply);
-    if(data.plan) renderPlan(data.plan, data.recommendation);
+    if(data.plan && !data.checkout_url && !data.share_url) renderPlan(data.plan, data.recommendation);
+    if(data.checkout_url) renderAction(data.checkout_url, "🧳 Open checkout →");
+    if(data.share_url) renderAction(data.share_url, "🔗 Open shareable plan →");
     renderChips(data.suggestions);
   }catch(e){ rmTyping(); addMsg("scout","Sorry — I couldn't reach the planner. Is the server running?"); }
 }

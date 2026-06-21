@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout — Checkout</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:17px; margin:0; }
+  main { max-width:620px; margin:0 auto; padding:22px 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  .card h2 { margin:0 0 12px; font-size:15px; }
+  .item { display:flex; justify-content:space-between; padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
+  .item:first-of-type { border-top:0; }
+  .item .k { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+  .total { display:flex; justify-content:space-between; font-weight:700; padding-top:12px; border-top:2px solid var(--line); margin-top:6px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  button { background:var(--fox); color:#fff; border:0; border-radius:10px; padding:12px 16px; font-weight:600; cursor:pointer; font-size:14px; width:100%; }
+  button:hover { background:var(--fox-dark); }
+  .note { font-size:12px; color:var(--muted); margin-top:10px; }
+  .ok { background:#dcfce7; color:#166534; border-radius:10px; padding:14px; font-size:14px; }
+  .badge { font-size:11px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:999px; }
+</style>
+</head>
+<body>
+<header><span style="font-size:22px">🦊</span><h1>Scout Checkout</h1><span class="badge" style="margin-left:auto">TEST MODE</span></header>
+<main id="main"><p class="note">Loading your trip…</p></main>
+<script>
+const API = location.origin + "/api";
+const cartId = new URLSearchParams(location.search).get("cart");
+const main = document.getElementById("main");
+const money = n => "$" + Number(n||0).toLocaleString();
+
+async function load(){
+  if(!cartId){ main.innerHTML = "<p>No cart specified.</p>"; return; }
+  const cart = await (await fetch(`${API}/checkout/cart/${cartId}`)).json();
+  if(cart.error){ main.innerHTML = `<p>${cart.error}</p>`; return; }
+  if(cart.status === "booked"){ renderConfirmed(cart); return; }
+  render(cart);
+}
+
+function render(cart){
+  main.innerHTML = `
+   <div class="card"><h2>Your ${cart.destination} trip</h2>
+     ${cart.items.map(i=>`<div class="item"><div><div class="k">${i.kind}</div>${i.title} <span class="note">· ${i.partner}</span></div><div>${money((i.price||0)*(i.nights||1))}${i.nights?` <span class="note">(${i.nights} nights)</span>`:""}</div></div>`).join("")}
+     <div class="total"><span>Estimated total</span><span>${money(cart.total)}</span></div>
+   </div>
+   <div class="card"><h2>Lead traveler</h2>
+     <div class="row"><div><label>First name</label><input id="given" value="Test"></div><div><label>Last name</label><input id="family" value="Traveler"></div></div>
+     <label>Email</label><input id="email" value="test@example.com">
+     <div class="row"><div><label>Date of birth</label><input id="dob" value="1990-01-01"></div><div><label>Phone</label><input id="phone" value="+15551234567"></div></div>
+     <p class="note">Flights are issued via Duffel; payment is collected via Stripe. In TEST MODE no card is charged — use Stripe test card 4242 4242 4242 4242 when live.</p>
+   </div>
+   <button onclick="pay()">Confirm & book ${money(cart.total)}</button>
+   <p class="note" id="msg"></p>`;
+}
+
+async function pay(){
+  document.getElementById("msg").textContent = "Processing payment & issuing tickets…";
+  const passengers = [{ title:"mr", given_name:given.value, family_name:family.value, email:email.value, born_on:dob.value, gender:"m", phone_number:phone.value }];
+  const cart = await (await fetch(`${API}/checkout/cart/${cartId}/pay`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passengers})})).json();
+  if(cart.error){ document.getElementById("msg").textContent = cart.error; return; }
+  renderConfirmed(cart);
+}
+
+function renderConfirmed(cart){
+  const ref = cart.confirmation?.order?.booking_reference || "—";
+  const sim = cart.confirmation?.simulated;
+  main.innerHTML = `
+   <div class="card"><div class="ok">✅ Booked! Confirmation <b>${ref}</b>${sim?" <span class='badge'>simulated</span>":""}</div>
+     <h2 style="margin-top:16px">${cart.destination} — itinerary</h2>
+     ${cart.items.map(i=>`<div class="item"><div><div class="k">${i.kind} · ${i.status}</div>${i.title}</div><div>${money((i.price||0)*(i.nights||1))}</div></div>`).join("")}
+     <div class="total"><span>Total</span><span>${money(cart.total)}</span></div>
+   </div>
+   <p class="note">${sim?"This is a simulated booking (no keys configured). Add Duffel + Stripe test keys to issue real test tickets.":"A confirmation email is on its way."} <a href="/assistant.html">Plan another trip →</a></p>`;
+}
+load();
+</script>
+</body>
+</html>

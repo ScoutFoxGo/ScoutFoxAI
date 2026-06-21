@@ -24,12 +24,26 @@ top pick and a cost estimate, and refines it when you say *"make it cheaper"* or
 *"add a day."* 👍/👎 on a pick teaches the self‑learning loop live.
 
 **The API:** `POST /api/assistant/message { sessionId?, message }` →
-`{ reply, stage, plan, recommendation, suggestions }`. It keeps per‑conversation
-memory (`server/assistant/session.js`) and orchestrates the whole brain
-(`server/assistant/assistant.js`): slot‑fills the request across turns → persona
-classify → Decision Layer (understand → reason → compose → recommend) → conversational
-refine → self‑learning feedback. Deterministic and fully offline; with an Anthropic
-key it polishes replies into Scout's voice (never inventing facts).
+`{ reply, stage, plan, recommendation, suggestions, checkout_url?, share_url? }`.
+It keeps per‑conversation memory (`server/assistant/session.js`) and orchestrates
+the whole brain (`server/assistant/assistant.js`): slot‑fills the request across
+turns → persona classify → Decision Layer (understand → reason → compose →
+recommend) → conversational refine → self‑learning feedback. Deterministic and
+fully offline; with an Anthropic key it polishes replies into Scout's voice (never
+inventing facts). It also handles **compare** (*"Orlando or Miami with kids?"* runs
+Destination Intelligence and picks the better fit), **book**, and **share** intents.
+
+**Book it (TEST MODE).** Saying *"book it"* turns the plan into a checkout cart
+(`server/booking/cart.js`) and returns a `checkout_url` → **`/checkout.html`**. The
+cart checks out through the real two‑leg flight flow — Stripe PaymentIntent → Duffel
+order (`server/flights/booking.js`) — which is **mock‑safe**: with no keys it returns
+a simulated confirmation (a `MOCKPNR`), and it *refuses live keys* unless
+`ALLOW_LIVE_PAYMENTS=true`. `POST /api/checkout/cart`, `GET /api/checkout/cart/:id`,
+`POST /api/checkout/cart/:id/pay`.
+
+**Share a plan.** Saying *"share this plan"* persists it (`server/plans/store.js`)
+and returns a `share_url` → a read‑only **`/plan.html?id=…`** anyone can open.
+`POST /api/plans`, `GET /api/plans/:id`.
 
 **Is it really standalone?** Yes. It needs no other website to function — it has its
 own conversational UI, its own API, its own data + learning, and a single‑service

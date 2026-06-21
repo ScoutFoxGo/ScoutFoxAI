@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout — Shared trip plan</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:17px; margin:0; }
+  header a { margin-left:auto; font-size:13px; color:var(--fox); font-weight:600; text-decoration:none; }
+  main { max-width:680px; margin:0 auto; padding:22px 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; }
+  h2 { margin:0 0 2px; font-size:18px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
+  .day { border-top:1px solid var(--line); padding:10px 0; }
+  .day b { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .item { display:flex; gap:10px; margin:6px 0; font-size:14px; }
+  .item .slot { color:var(--muted); min-width:70px; text-transform:capitalize; }
+  .item .why { color:var(--muted); font-size:12.5px; }
+  .pick { margin-top:12px; padding:12px; background:#fff7f3; border:1px solid #f6d9c9; border-radius:10px; }
+  .pick .lbl { font-size:11px; font-weight:700; color:var(--fox-dark); text-transform:uppercase; letter-spacing:.05em; }
+  .est { margin-top:12px; font-size:13px; color:var(--muted); }
+  .cta { margin-top:16px; }
+  .cta a { display:inline-block; background:var(--fox); color:#fff; border-radius:10px; padding:11px 18px; font-weight:600; text-decoration:none; font-size:14px; }
+</style>
+</head>
+<body>
+<header><span style="font-size:22px">🦊</span><h1>Scout — shared plan</h1><a href="/assistant.html">Plan your own →</a></header>
+<main id="main"><p style="color:var(--muted)">Loading plan…</p></main>
+<script>
+const API = location.origin + "/api";
+const id = new URLSearchParams(location.search).get("id");
+const main = document.getElementById("main");
+const esc = s => String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function load(){
+  if(!id){ main.innerHTML = "<p>No plan specified.</p>"; return; }
+  const rec = await (await fetch(`${API}/plans/${id}`)).json();
+  if(rec.error){ main.innerHTML = `<p>${rec.error}</p>`; return; }
+  const p = rec.plan;
+  let html = `<div class="card"><h2>${esc(p.destination)} — ${(p.days||[]).length}-day plan</h2><p class="sub">${esc(p.summary||"")} · confidence ${esc(p.confidence||"")}</p>`;
+  (p.days||[]).forEach(day=>{
+    html += `<div class="day"><b>Day ${day.day}</b>`;
+    (day.items||[]).forEach(it=>{ html += `<div class="item"><span class="slot">${esc(it.slot)}</span><span><b>${esc(it.title)}</b><div class="why">${esc(it.reason||"")}</div></span></div>`; });
+    html += `</div>`;
+  });
+  const best = p.top_pick;
+  if(best) html += `<div class="pick"><div class="lbl">⭐ Top pick</div><b>${esc(best.title)}</b><div class="why">${esc(best.why_fits||"")}</div><div class="why">best for: ${esc(best.best_for||"—")} · ${esc(best.estimated_cost||"")}</div></div>`;
+  if(p.estimate) html += `<div class="est">Estimated all-in ~$${p.estimate.total} (flight $${p.estimate.flight} + stay $${p.estimate.stay_per_night}/night × ${p.estimate.nights} + activities $${p.estimate.activities})</div>`;
+  html += `<div class="cta"><a href="/assistant.html">Plan a trip like this →</a></div></div>`;
+  main.innerHTML = html;
+}
+load();
+</script>
+</body>
+</html>

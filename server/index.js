@@ -37,6 +37,8 @@ import crowdsenseRouter from "./crowdsense/routes.js";
 import companionRouter from "./companion/routes.js";
 import learningRouter from "./learning/routes.js";
 import assistantRouter from "./assistant/routes.js";
+import checkoutRouter from "./booking/checkout.routes.js";
+import plansRouter from "./plans/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -68,6 +70,8 @@ app.get("/api", (_req, res) => {
     status: "ok",
     endpoints: {
       assistant: ["POST /api/assistant/message", "GET /api/assistant/session/:id", "POST /api/assistant/session/:id/reset", "POST /api/assistant/session/:id/feedback"],
+      checkout: ["POST /api/checkout/cart", "GET /api/checkout/cart/:id", "POST /api/checkout/cart/:id/pay"],
+      plans: ["POST /api/plans", "GET /api/plans/:id"],
       decision: ["POST /api/decision/plan", "POST /api/decision/recommend", "POST /api/decision/refine"],
       match: ["POST /api/match/score", "POST /api/match/predict", "POST /api/match/behavior", "POST /api/match/rank"],
       persona: ["POST /api/persona/classify"],
@@ -186,6 +190,11 @@ app.use("/api/learning", learningRouter);
 // The standalone product front door: a stateful conversational planning assistant
 // that orchestrates the whole brain (understand -> plan -> refine -> learn).
 app.use("/api/assistant", assistantRouter);
+
+// Booking checkout (cart -> Stripe payment -> Duffel order, TEST MODE) and
+// saved/shareable plans.
+app.use("/api/checkout", checkoutRouter);
+app.use("/api/plans", plansRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
