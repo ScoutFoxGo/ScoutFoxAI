@@ -53,6 +53,18 @@
     <div id="recOut" class="out"></div>
   </section>
 
+  <!-- What Scout has learned -->
+  <section class="card">
+    <h2>🧠 What Scout has learned</h2>
+    <p class="hint">Scout learns from every 👍/👎 above — instantly (tag priors) and durably (distilled insights). It can also pull fresh knowledge from the internet.</p>
+    <div class="row">
+      <input id="topic" value="best shaded playgrounds for toddlers in Miami" placeholder="research a topic from the internet" />
+      <button class="ghost" onclick="research()">Research</button>
+      <button class="ghost" onclick="loadLearned()">Refresh</button>
+    </div>
+    <div id="learnOut" class="out"></div>
+  </section>
+
   <!-- Modes -->
   <section class="card">
     <h2>Scout Modes</h2>
@@ -100,17 +112,51 @@ async function jpost(path, body){ const r = await fetch(API+path,{method:"POST",
 async function jget(path){ const r = await fetch(API+path); return r.json(); }
 
 function optCard(o){ if(!o) return ""; const band=o.confidence||o.band||"";
+  const tags = JSON.stringify(o.tags||[]);
   return `<div class="pick"><div class="top"><b>${o.title}</b><span class="badge ${bandClass(band)}">${o.estimated_cost||""} ${band}</span></div>
-  <div class="reason">${o.why_fits||""}</div><div class="reason">best for: ${o.best_for||"—"} · prep: ${o.preparation||"—"}</div></div>`; }
+  <div class="reason">${o.why_fits||""}</div><div class="reason">best for: ${o.best_for||"—"} · prep: ${o.preparation||"—"}</div>
+  <div style="margin-top:6px"><button class="ghost" style="padding:4px 10px;font-size:12px" onclick='teach(${tags},true,this)'>👍 Good pick</button>
+  <button class="ghost" style="padding:4px 10px;font-size:12px" onclick='teach(${tags},false,this)'>👎 Not for us</button></div></div>`; }
+
+// Teach the brain from a thumbs up/down — this is the live learning loop.
+async function teach(tags, accepted, btn){
+  const wrap = btn.parentElement;
+  wrap.innerHTML = "<span class='muted'>thanks — Scout is learning…</span>";
+  await jpost("/learning/outcome",{ userId: fam.value||"anon", tags, accepted });
+  loadLearned();
+}
 
 async function recommend(){
   document.getElementById("recOut").innerHTML = "<span class='muted'>thinking…</span>";
   const r = await jpost("/decision/recommend",{ request:q.value, familyProfileId:fam.value||undefined, weather:weather.value||undefined });
+  const learned = (r.learned||[]).length ? `<div class="reason" style="margin-top:8px">🧠 applying: ${r.learned.map(l=>l.insight).join(" · ")}</div>` : "";
   document.getElementById("recOut").innerHTML =
     `<div class="muted">for ${r.destination} · confidence ${r.confidence}</div>
      <div style="margin-top:6px"><b>✅ Best match</b>${optCard(r.best_match)}</div>
      <div style="margin-top:6px"><b>💸 Budget</b>${optCard(r.budget_option)}</div>
-     <div style="margin-top:6px"><b>⭐ Premium</b>${optCard(r.premium_option)}</div>`;
+     <div style="margin-top:6px"><b>⭐ Premium</b>${optCard(r.premium_option)}</div>${learned}`;
+}
+
+async function loadLearned(){
+  const el = document.getElementById("learnOut");
+  try {
+    const s = await jget("/learning/state");
+    const k = s.instant||{};
+    const best = (k.works_best||[]).map(r=>`${r.tag} ${Math.round(r.acceptance*100)}%`).join(" · ") || "nothing yet";
+    const durable = (s.durable||[]).map(d=>`<div class="reason">• ${d.insight}</div>`).join("") || "<div class='reason'>no distilled insights yet — teach Scout a few picks</div>";
+    el.innerHTML = `<div class="pick"><div class="muted">instant (${k.interactions||0} interactions, ${k.learned_tags||0} tags)</div>
+      <div class="reason">works best: ${best}</div></div>
+      <div class="pick"><div class="muted">durable insights</div>${durable}</div>`;
+  } catch(e){ el.innerHTML = "<span class='muted'>learning API not reachable</span>"; }
+}
+
+async function research(){
+  const el = document.getElementById("learnOut");
+  el.innerHTML = "<span class='muted'>pulling knowledge from the internet…</span>";
+  const r = await jpost("/learning/research",{ topic: document.getElementById("topic").value });
+  if (r.error){ el.innerHTML = `<span class='muted'>${r.error}</span>`; return; }
+  el.innerHTML = `<div class="pick">${r.simulated?"<span class='muted'>(demo mode — add an Anthropic key for live web search)</span><br>":""}${(r.knowledge||"").slice(0,600)}</div>`;
+  setTimeout(loadLearned, 1200);
 }
 async function mode(m){
   document.getElementById("modeOut").innerHTML = "<span class='muted'>routing…</span>";
@@ -141,6 +187,7 @@ async function compare(){
     const h = await jget("/health"); document.getElementById("status").textContent = h.anthropic ? "● live Claude" : "● demo mode";
     const f = await jget("/scout/family");
     fam.innerHTML = `<option value="">(no family)</option>` + (f.family_profiles||[]).map(p=>`<option value="${p.id}">${p.parent_name} — ${p.kids_info}</option>`).join("");
+    loadLearned();
   }catch(e){ document.getElementById("status").textContent = "API not reachable"; }
 })();
 </script>

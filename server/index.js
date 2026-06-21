@@ -78,7 +78,7 @@ app.get("/api", (_req, res) => {
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
       companion: ["POST /api/companion/alerts"],
-      learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "POST /api/learning/distill"],
+      learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "GET /api/learning/state", "POST /api/learning/distill", "POST /api/learning/research"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],

@@ -5,10 +5,35 @@
 // planning insights, then store those in the closed corpus so the tutor and the
 // team can use them. Deterministic fallback works offline (mock mode).
 
-import { invokeLLM } from "../llm.js";
-import { addLesson } from "../lms/corpus.js";
+import { invokeLLM, researchLLM } from "../llm.js";
+import { addLesson, listLessons } from "../lms/corpus.js";
 import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
 import { knowledge } from "./loop.js";
+
+// INTERNET KNOWLEDGE: pull external knowledge on a topic (Claude web search) and
+// distill it into the closed corpus as durable knowledge. Opt-in; live with an
+// Anthropic key + network, labelled mock otherwise, LIVE_ONLY-guarded.
+export async function researchKnowledge(topic) {
+  if (!topic) throw new Error("topic required");
+  const r = await researchLLM(topic);
+  const lesson = addLesson({
+    title: `Researched: ${topic.slice(0, 60)}`,
+    topic: "Researched Knowledge",
+    summary: r.text,
+    key_points: [],
+    source: { type: "research", ref: topic },
+  });
+  return { lesson_id: lesson.id, simulated: !!r.mocked, knowledge: r.text };
+}
+
+// The durable knowledge the loop has distilled, newest first — consumed by the
+// recommender and the Scout Guide tutor so learning feeds back into answers.
+export function getLatestInsights(n = 3) {
+  return listLessons()
+    .filter((l) => l.topic === "Learned Insights")
+    .slice(0, n)
+    .map((l) => ({ id: l.id, insight: l.summary, at: l.created_at }));
+}
 
 export async function learnInsights() {
   const k = knowledge();

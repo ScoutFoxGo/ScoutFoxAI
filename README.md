@@ -135,18 +135,34 @@ Scout gains knowledge two complementary ways, and both feed back into the brain:
    **acceptance prior per tag** ("what families actually accept"). The **Match
    Score folds that prior in (15%)**, so as outcomes accumulate, recommendations
    shift toward what works — across the whole brain. `GET /api/learning/knowledge`
-   shows what it's learned. *(Demonstrated: teaching accept‑shaded / reject‑long‑day
-   moved a shaded activity up and a long‑day one down with no code change.)*
+   shows what it's learned.
 
-2. **From prompts (distillation).** `POST /api/learning/distill` takes the raw
-   acceptance aggregates and asks the model to write 2–3 concise, reusable
+2. **From prompts (distillation, durable).** `POST /api/learning/distill` takes the
+   raw acceptance aggregates and asks the model to write 2–3 concise, reusable
    planning insights, then stores them in the **closed corpus** (so the Scout
    Guide tutor and the team can use them). This is the "gaining knowledge with
    prompts" half; it runs deterministically offline and is LLM‑written with a key.
+   It also runs **automatically** every 10 interactions, so the durable layer keeps
+   itself current with no manual step.
 
-Together: interactions → learned priors (instant, statistical) + periodic
-prompt‑distilled insights (durable, human‑readable) → both make the next answer
-better. Closed and in‑house.
+3. **From the internet (research, opt‑in).** `POST /api/learning/research {topic}`
+   pulls fresh knowledge from the web via Claude web search and **distills it into
+   the same closed corpus** as durable knowledge — Scout learns from the open web
+   but stores only its own in‑house lessons. Off by default; live with an Anthropic
+   key + network, clearly labelled simulated otherwise.
+
+`GET /api/learning/state` returns the whole picture in one call —
+`{ instant: <tag priors>, durable: <distilled insights> }` — and the distilled
+insights are surfaced back on every recommendation (`recommend.learned`) and in
+the demo's "🧠 What Scout has learned" panel (with 👍/👎 buttons that feed the loop
+live).
+
+Together: interactions → learned priors (instant, statistical, fold into the Match
+Score at 15%) + auto/­manual prompt‑distilled insights and opt‑in internet research
+(durable, human‑readable) → all three make the next answer better. Closed and
+in‑house. *(Demonstrated: teaching accept‑shaded / reject‑long‑day moved a shaded
+activity up and a long‑day one down with no code change, and the durable insight
+auto‑distilled at 10 interactions.)*
 
 ## Predictive intelligence (`server/crowdsense/`, `server/companion/`)
 

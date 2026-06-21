@@ -45,6 +45,13 @@ export function recordOutcome({ userId = "anon", tags = [], accepted, rating, se
   if (userId && userId !== "anon") {
     recordSignal(userId, { type: accepted ? "accept" : "reject", tags: ev.tags, rating });
   }
+
+  // Auto-distill the durable half on a cadence: every 10 interactions, turn the
+  // aggregates into a stored insight in the background (dynamic import avoids a
+  // require cycle). This is what makes the knowledge loop self-running.
+  if (log.length % 10 === 0) {
+    import("./distill.js").then((m) => m.learnInsights()).catch(() => {});
+  }
   return ev;
 }
 

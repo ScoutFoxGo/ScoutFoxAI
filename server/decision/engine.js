@@ -143,7 +143,14 @@ export async function recommendTrip(input) {
   const intent = await understand(input);
   const options = gatherOptions(intent);
   const scored = reason(intent, options, input.weather);
-  return recommend(intent, scored);
+  const rec = recommend(intent, scored);
+  // Surface the durable, self-learned insights alongside the recommendation so
+  // the loop visibly feeds back into answers.
+  try {
+    const { getLatestInsights } = await import("../learning/distill.js");
+    rec.learned = getLatestInsights(2);
+  } catch { /* learning optional */ }
+  return rec;
 }
 
 // --- 4. COMPOSE: assemble the day-structured plan, each item with a reason ---
@@ -233,6 +240,7 @@ function explainOption(o, intent) {
   return {
     title: o.title,
     partner: o.partner,
+    tags: o.tags || [],
     confidence: o._conf,
     why_fits: reasonFor(o, intent),
     estimated_cost: o.price ? `$${o.price} (estimate — verify)` : "Free",
