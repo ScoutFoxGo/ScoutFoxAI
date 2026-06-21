@@ -67,12 +67,14 @@ export async function matchScore(target, subject = {}) {
   raw -= Math.min(0.4, disliked.length * 0.2); // dislikes pull the score down
 
   // SELF-LEARNING: fold in the learned prior ("what families actually accept")
-  // for these tags, blended at 15%. When a segment is known (e.g. toddler-family,
-  // grandparent), the prior is specialized to that segment over the global one,
-  // so scores shift toward what works for this KIND of family specifically. The
-  // whole brain improves from the loop.
+  // for these tags, blended at 15%. The prior is recency- and rating-weighted and,
+  // when known, specialized to the family's segment AND the current context
+  // (weather/season) — e.g. "indoor wins when it's wet" — over the global signal.
+  // As outcomes accumulate, scores shift toward what works for this kind of family
+  // under these conditions. The whole brain improves from the loop.
   const seg = subject.segment || (fam && fam.segment) || null;
-  const learned = tags.length ? tags.reduce((s, t) => s + tagPrior(t, seg), 0) / tags.length : 0.5;
+  const ctx = subject.context || subject.weather || target.weather || null;
+  const learned = tags.length ? tags.reduce((s, t) => s + tagPrior(t, seg, ctx), 0) / tags.length : 0.5;
   raw = raw * 0.85 + learned * 0.15;
 
   const pct = Math.max(0, Math.min(100, Math.round(raw * 100)));

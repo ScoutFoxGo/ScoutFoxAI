@@ -130,17 +130,23 @@ key. Everything else uses live data the moment its credential is set.
 Scout gains knowledge two complementary ways, and both feed back into the brain:
 
 1. **From interactions (statistical, every use).** `POST /api/learning/outcome
-   {tags, accepted, rating, userId?, segment?}` records whether a recommendation
-   was taken. That updates (a) the per-user behavior profile, (b) a global
-   **acceptance prior per tag** ("what families actually accept"), and (c) a
-   **per-segment prior** so Scout learns differently for toddler-families vs.
-   grandparents vs. teens. The **Match Score folds that prior in (15%)**,
-   specialized to the family's segment when known and blended over the global
-   signal by sample size — so as outcomes accumulate, recommendations shift toward
-   what works *for this kind of family specifically*. `GET /api/learning/knowledge`
-   shows what it's learned (including a `by_segment` breakdown). *(Demonstrated:
-   the same `shaded` tag learned to 0.82 for toddler‑families and 0.18 for teens
-   while staying 0.50 globally.)*
+   {tags, accepted, rating?, userId?, segment?, context?}` records whether a
+   recommendation was taken. Priors are **derived from the event log** so one model
+   captures four things at once:
+   - **recency** — recent outcomes count more (45‑day half‑life), so Scout adapts
+     to changing tastes/seasons instead of being anchored by old data;
+   - **rating** — a 1–5 `rating` is a finer signal than binary accept/reject;
+   - **segment** — learns differently for toddler‑families vs. grandparents vs. teens;
+   - **context** — learns by weather/season (e.g. "indoor wins when it's wet").
+
+   The **Match Score folds that prior in (15%)**, specialized to the family's
+   segment *and* the current context when known and blended over the global signal
+   by how much specific evidence exists — so recommendations shift toward what works
+   *for this kind of family, under these conditions*. `GET /api/learning/knowledge`
+   shows what it's learned (with `by_segment` and `by_context` breakdowns).
+   *(Demonstrated: the same `indoor` tag learned to 0.92 when it's wet and 0.08 when
+   clear while staying 0.50 globally; recent rejects overrode equal‑count old accepts
+   (0.12); rated‑5 beat rated‑2 (0.90 vs 0.30) though both were "accepted.")*
 
 2. **From prompts (distillation, durable).** `POST /api/learning/distill` takes the
    raw acceptance aggregates and asks the model to write 2–3 concise, reusable
