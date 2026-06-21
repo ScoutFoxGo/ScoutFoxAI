@@ -13,6 +13,10 @@
 // Home.jsx — calling /api/invoke once per step. This keeps the server a thin,
 // stateless LLM proxy.
 
+// Load server/.env (or repo-root .env) into process.env BEFORE anything reads it.
+// Must be the first import — config.js and others read env at module-eval time.
+import { envFile, loadedCount } from "./env.js";
+
 import express from "express";
 import cors from "cors";
 import { existsSync } from "node:fs";
@@ -228,4 +232,23 @@ app.listen(PORT, () => {
   const ai = process.env.ANTHROPIC_API_KEY ? "LIVE Anthropic" : "mock LLM";
   const mode = /^(1|true|yes|on)$/i.test(process.env.LIVE_ONLY || "") ? "LIVE_ONLY" : "dev";
   console.log(`ScoutFoxAI server on http://localhost:${PORT}  [${mode}; ${ai}; data: ${dataSource}]`);
+  if (envFile) console.log(`  env: loaded ${loadedCount} var(s) from ${envFile}`);
+
+  // Live-integration summary, so you can confirm which keys were picked up in the
+  // real world. "live" = a key is present; absent ones stay in mock mode.
+  const has = (k) => Boolean(process.env[k]);
+  const stripeMode = !process.env.STRIPE_SECRET_KEY ? "mock" : process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE 💳" : "test";
+  const live = {
+    anthropic: has("ANTHROPIC_API_KEY"),
+    scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL"),
+    duffel_flights_stays: has("DUFFEL_API_KEY"),
+    stripe_payments: stripeMode,
+    viator: has("VIATOR_API_KEY"),
+    getyourguide: has("GETYOURGUIDE_API_KEY"),
+    cruises: has("CRUISE_API_KEY"),
+    google_places: has("GOOGLE_PLACES_API_KEY"),
+    reddit_signals: has("REDDIT_API_KEY"),
+  };
+  const liveList = Object.entries(live).filter(([, v]) => v && v !== "mock").map(([k, v]) => (v === true ? k : `${k}:${v}`));
+  console.log(`  integrations live: ${liveList.length ? liveList.join(", ") : "none yet (running on mock data — add keys in server/.env)"}`);
 });
