@@ -91,9 +91,20 @@ bookable, day-structured, explainable plan** out (not a list). Pipeline:
    reshape the plan.
 
 Endpoints: `POST /api/decision/plan {request, familyProfileId?, destination?,
-days?, budget?, pace?}`, `POST /api/decision/refine {intent, feedback}`,
-`POST /api/decision/understand`. Reasoning/compose are deterministic (explainable,
+days?, budget?, pace?, weather?}`, `POST /api/decision/refine {intent, feedback}`,
+`POST /api/decision/recommend` (Recommendation Model below), `POST
+/api/decision/understand`. Reasoning/compose are deterministic (explainable,
 offline); only Understand optionally calls the model.
+
+**Scout persona + Recommendation Model.** The Scout Fox Go™ Master System Prompt
+lives in `server/scout/persona.js` and is the single source of truth: AI calls
+pass it as the system prompt, and the engine encodes the spec's structured logic
+— the **Scout Ranking Algorithm** weights (preference 30 / convenience 20 /
+budget 15 / accessibility 15 / quality 10 / weather 5 / novelty 5), **confidence
+scores** (High/Medium/Low), and the **Recommendation Model**: `POST
+/api/decision/recommend` returns a Best Match + Alternative + Budget + Premium +
+Indoor/Outdoor backups, each with why-it-fits, estimated cost (flagged "verify"),
+ideal duration, who it's best for, drawbacks, and prep — and re-ranks on weather.
 
 ## Closed self-learning LMS (`server/lms/`)
 

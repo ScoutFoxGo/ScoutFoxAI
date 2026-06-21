@@ -12,8 +12,17 @@
 import { invokeLLM } from "../llm.js";
 import { gatherOptions } from "../booking/index.js";
 import { getFamilyProfile } from "../scoutfoxgo/data.js";
+import { SCOUT_SYSTEM_PROMPT, RANKING_WEIGHTS, confidenceLabel } from "../scout/persona.js";
 
 const MODEL = "claude_opus_4_8";
+
+// Stable pseudo-random in [0,1) from a string (quality/novelty proxies until
+// real ratings are wired in).
+function rnd(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000;
+}
 
 const BUDGET = {
   Low: { activity: 20, stay: 150, flight: 420 },
@@ -30,7 +39,7 @@ export async function understand(input = {}) {
   const req = (input.request || "").toLowerCase();
   const intent = {
     request: input.request || "",
-    destination: input.destination || matchAfter(req, ["to ", "in ", "visit "]) || "your destination",
+    destination: input.destination || matchAfter(req, ["in ", "near ", "around ", "visit ", "to "]) || "your destination",
     days: input.days || (/\bweekend\b/.test(req) ? 2 : /\bday trip\b/.test(req) ? 1 : 3),
     budget: input.budget || (/(budget|cheap|affordable|low)/.test(req) ? "Low" : /(luxury|splurge|higher|premium)/.test(req) ? "Higher" : "Medium"),
     pace: input.pace || (/(relax|slow|toddler|tired|calm|easy)/.test(req) ? "relaxed" : /(adventur|pack|action|busy|everything|all the)/.test(req) ? "adventurous" : "balanced"),
@@ -48,6 +57,7 @@ export async function understand(input = {}) {
         const res = await invokeLLM({
           modelKey: MODEL,
           maxTokens: 400,
+          system: SCOUT_SYSTEM_PROMPT,
           prompt:
             `Extract structured trip intent from: "${input.request}". Return ONLY JSON ` +
             `{"destination":str,"days":int,"budget":"Low"|"Medium"|"Higher",` +
@@ -63,36 +73,77 @@ export async function understand(input = {}) {
   return intent;
 }
 
-// --- 3. REASON: score options against the family's actual constraints ---
-function score(option, intent) {
-  const cap = BUDGET[intent.budget] || BUDGET.Medium;
-  let s = 1;
-  // Budget fit
-  const limit = cap[option.kind] ?? 999;
-  if (option.price <= limit) s += 2;
-  else s -= Math.min(3, (option.price - limit) / 50);
-  // Family preference tags (stroller-friendly, sensory-friendly, shaded, playground...)
-  for (const p of intent.prefs) {
-    if (option.tags.some((t) => t.includes(p) || p.includes(t))) s += 1.5;
-  }
-  // Must-haves / hard-nos
-  for (const m of intent.must_haves) if (option.tags.some((t) => t.includes(m.toLowerCase()))) s += 2;
-  for (const n of intent.hard_nos) if (option.tags.some((t) => t.includes(n.toLowerCase()))) s -= 4;
-  // Accessibility bias for family travel
-  if (option.accessible) s += 0.5;
-  // Pace: relaxed families avoid long-day activities
-  if (intent.pace === "relaxed" && option.tags.includes("long-day")) s -= 2;
-  if (intent.pace === "adventurous" && (option.tags.includes("thrill") || option.tags.includes("active"))) s += 1;
-  return s;
+// --- 3. REASON: Scout Ranking Algorithm — weighted score in [0,1] ---
+// Subscores follow the spec's weights: preference 30, convenience 20, budget 15,
+// accessibility 15, quality 10, weather 5, novelty 5.
+function weatherFit(o, weather) {
+  if (!weather) return 0.7; // unknown — neutral
+  const w = String(weather).toLowerCase();
+  const indoor = o.tags.includes("indoor");
+  const outdoor = o.tags.includes("outdoor");
+  if (/rain|storm|snow|cold|heat|hot|wind/.test(w)) return indoor ? 1 : outdoor ? 0.2 : 0.6;
+  return outdoor ? 1 : 0.7;
 }
 
-export function reason(intent, options) {
-  const rank = (arr) => arr.map((o) => ({ ...o, _score: score(o, intent) })).sort((a, b) => b._score - a._score);
+function score(o, intent, weather) {
+  const cap = (BUDGET[intent.budget] || BUDGET.Medium)[o.kind] ?? 999;
+  const prefs = [...intent.prefs, ...intent.must_haves.map((m) => m.toLowerCase())];
+  const hits = prefs.filter((p) => o.tags.some((t) => t.includes(p) || p.includes(t))).length;
+
+  const preference = prefs.length ? Math.min(1, hits / Math.min(3, prefs.length)) : 0.5;
+  const convenience = Math.min(1, (o.accessible ? 0.5 : 0) + (o.duration_hrs <= 2 ? 0.5 : o.duration_hrs <= 4 ? 0.3 : 0.1));
+  const budget = o.price <= cap ? 1 : Math.max(0, 1 - (o.price - cap) / (cap || 100));
+  const accessibility = o.accessible ? 1 : 0.2;
+  const quality = 0.5 + rnd(o.id) * 0.5;
+  const weather_ = weatherFit(o, weather);
+  const novelty = rnd(o.id + "n");
+
+  const W = RANKING_WEIGHTS;
+  let total =
+    W.preference * preference + W.convenience * convenience + W.budget * budget +
+    W.accessibility * accessibility + W.quality * quality + W.weather * weather_ + W.novelty * novelty;
+
+  if (intent.hard_nos.some((n) => o.tags.some((t) => t.includes(n.toLowerCase())))) total = 0;
+  if (intent.pace === "relaxed" && o.tags.includes("long-day")) total *= 0.6;
+  if (intent.pace === "adventurous" && (o.tags.includes("thrill") || o.tags.includes("active"))) total = Math.min(1, total + 0.1);
+  return total;
+}
+
+export function reason(intent, options, weather) {
+  const rank = (arr) =>
+    arr
+      .map((o) => {
+        const t = score(o, intent, weather);
+        return { ...o, _score: Number(t.toFixed(3)), _conf: confidenceLabel(t) };
+      })
+      .sort((a, b) => b._score - a._score);
+  return { flights: rank(options.flights), stays: rank(options.stays), activities: rank(options.activities) };
+}
+
+// --- Recommendation Model: Best Match / Alternative / Budget / Premium /
+// Indoor + Outdoor backups, each explained (per the Scout system prompt) ---
+export function recommend(intent, scored) {
+  const acts = scored.activities;
+  if (!acts.length) return { error: "no options available" };
+  const byPrice = (dir) => [...acts].sort((a, b) => (a.price - b.price) * dir)[0];
   return {
-    flights: rank(options.flights),
-    stays: rank(options.stays),
-    activities: rank(options.activities),
+    request: intent.request,
+    destination: intent.destination,
+    confidence: acts[0]._conf,
+    best_match: explainOption(acts[0], intent),
+    alternative: acts[1] ? explainOption(acts[1], intent) : null,
+    budget_option: explainOption(byPrice(1), intent),
+    premium_option: explainOption(byPrice(-1), intent),
+    indoor_backup: explainOptionOrNull(acts.find((a) => a.tags.includes("indoor")), intent),
+    outdoor_backup: explainOptionOrNull(acts.find((a) => a.tags.includes("outdoor")), intent),
   };
+}
+
+export async function recommendTrip(input) {
+  const intent = await understand(input);
+  const options = gatherOptions(intent);
+  const scored = reason(intent, options, input.weather);
+  return recommend(intent, scored);
 }
 
 // --- 4. COMPOSE: assemble the day-structured plan, each item with a reason ---
@@ -158,15 +209,62 @@ export function applyFeedback(intent, feedback = "") {
 export async function planTrip(input) {
   const intent = await understand(input);
   const options = gatherOptions(intent);
-  const scored = reason(intent, options);
-  return compose(intent, scored);
+  const scored = reason(intent, options, input.weather);
+  const plan = compose(intent, scored);
+  plan.confidence = scored.activities[0]?._conf || "Low";
+  return plan;
 }
 
-export function refinePlan({ intent, feedback }) {
+export function refinePlan({ intent, feedback, weather }) {
   const next = applyFeedback(intent, feedback);
   const options = gatherOptions(next);
-  const scored = reason(next, options);
-  return { ...compose(next, scored), refined_from: feedback };
+  const scored = reason(next, options, weather);
+  const plan = compose(next, scored);
+  plan.confidence = scored.activities[0]?._conf || "Low";
+  return { ...plan, refined_from: feedback };
+}
+
+// --- recommendation explanation (Trust model: estimates are flagged, nothing
+// invented; travel time depends on origin so we say "verify") ---
+function explainOptionOrNull(o, intent) {
+  return o ? explainOption(o, intent) : null;
+}
+function explainOption(o, intent) {
+  return {
+    title: o.title,
+    partner: o.partner,
+    confidence: o._conf,
+    why_fits: reasonFor(o, intent),
+    estimated_cost: o.price ? `$${o.price} (estimate — verify)` : "Free",
+    travel_time: "varies by your starting point — verify locally",
+    ideal_duration: o.duration_hrs ? `${o.duration_hrs}h` : "flexible",
+    best_for: bestFor(o),
+    drawbacks: drawbacks(o),
+    preparation: preparation(o),
+  };
+}
+function bestFor(o) {
+  const bits = [];
+  if (o.age_min != null) bits.push(o.age_min === 0 ? "all ages" : `ages ${o.age_min}+`);
+  if (o.tags.includes("stroller-friendly")) bits.push("families with toddlers");
+  if (o.tags.includes("sensory-friendly")) bits.push("sensory-sensitive kids");
+  if (o.accessible) bits.push("mobility needs");
+  return bits.join(", ") || "most families";
+}
+function drawbacks(o) {
+  const d = [];
+  if (o.tags.includes("outdoor")) d.push("weather-dependent");
+  if (o.tags.includes("long-day")) d.push("a full day — can be a lot for young kids");
+  if (o.tags.includes("thrill")) d.push("not for the youngest travelers");
+  if (o.price >= 80) d.push("higher cost");
+  return d.join("; ") || "none notable";
+}
+function preparation(o) {
+  const p = [];
+  if (o.tags.includes("outdoor") || o.tags.includes("beach")) p.push("sunscreen, water, hats");
+  if (o.tags.includes("beach") || o.tags.includes("splash")) p.push("swimwear + change of clothes");
+  if (o.price > 0) p.push("buy/reserve tickets ahead");
+  return p.join("; ") || "nothing special";
 }
 
 // --- helpers ---
@@ -186,7 +284,7 @@ function stayReason(stay, intent) {
 }
 const SLOT_ORDER = { arrival: 0, morning: 1, midday: 2, afternoon: 3, evening: 4, extra: 5 };
 const bySlot = (a, b) => (SLOT_ORDER[a.slot] ?? 9) - (SLOT_ORDER[b.slot] ?? 9);
-const STOP_AFTER = new Set("that which for with and but so this these those a an the on in at next over during my our".split(" "));
+const STOP_AFTER = new Set("that which for with and but so this these those a an the on in at next over during my our do go see eat find something somewhere".split(" "));
 function matchAfter(text, prefixes) {
   for (const p of prefixes) {
     const i = text.indexOf(p);

@@ -1,8 +1,19 @@
 // routes.js — Decision Layer endpoints, mounted at /api/decision.
 import { Router } from "express";
-import { planTrip, refinePlan, understand } from "./engine.js";
+import { planTrip, refinePlan, understand, recommendTrip } from "./engine.js";
 
 const router = Router();
+
+// Recommendation Model: Best Match / Alternative / Budget / Premium / Indoor +
+// Outdoor backups, each explained, with a confidence score.
+// Body: { request, familyProfileId?, destination?, budget?, pace?, weather? }
+router.post("/recommend", async (req, res) => {
+  try {
+    res.json(await recommendTrip(req.body || {}));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 
 // Make a plan from a natural-language request (+ optional family profile / fields).
 // Body: { request, familyProfileId?, destination?, days?, budget?, pace? }

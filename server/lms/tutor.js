@@ -11,6 +11,7 @@
 
 import { invokeLLM, researchLLM } from "../llm.js";
 import { searchCorpus, addLesson } from "./corpus.js";
+import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
 
 const TUTOR_MODEL = "claude_opus_4_8";
 
@@ -59,7 +60,7 @@ export async function tutor({ userId, question, allowResearch = false }) {
     `it, say what's missing rather than inventing. Cite the lesson ids you use, ` +
     `like [${lessons[0].id}].\n\nLessons:\n${context}\n\nQuestion: ${question}`;
 
-  const res = await invokeLLM({ modelKey: TUTOR_MODEL, prompt });
+  const res = await invokeLLM({ modelKey: TUTOR_MODEL, prompt, system: SCOUT_SYSTEM_PROMPT });
   return {
     grounded: true,
     researched,
