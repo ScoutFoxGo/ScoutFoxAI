@@ -8,7 +8,7 @@
 import { getFamilyProfile } from "../scoutfoxgo/data.js";
 import { getProfile } from "./behavior.js";
 import { communitySentiment } from "./signals.js";
-import { tagPrior } from "../learning/loop.js";
+import { priorBreakdown } from "../learning/loop.js";
 
 const W = { preference: 0.45, budget: 0.25, sentiment: 0.2, quality: 0.1 };
 
@@ -35,12 +35,15 @@ function confidence(pct, signals) {
 // subject: { userId?, familyProfileId? }
 export async function matchScore(target, subject = {}) {
   const tags = (target.tags || []).map(norm);
-  const profile = subject.userId ? getProfile(subject.userId) : { likes: [], dislikes: [], budget_cap: null, signals: 0 };
   const fam = subject.familyProfileId ? getFamilyProfile(subject.familyProfileId) : null;
+  const seg = subject.segment || (fam && fam.segment) || null;
+  // COLD-START: a new user with a known segment inherits that segment's taste.
+  const profile = subject.userId ? getProfile(subject.userId, seg) : { likes: [], dislikes: [], budget_cap: null, signals: 0 };
   const famPrefs = fam ? fam.preferences.toLowerCase().split(/[,;]/).map((x) => norm(x)).filter(Boolean) : [];
   const likes = [...new Set([...profile.likes, ...famPrefs])];
 
   const reasons = [];
+  if (profile.seeded_from) reasons.push(`new here — starting from what ${profile.seeded_from} families tend to like`);
   // Preference fit
   const liked = likes.filter((p) => tags.some((t) => t.includes(p) || p.includes(t)));
   const preference = likes.length ? Math.min(1, liked.length / Math.min(4, likes.length)) : 0.5;
@@ -72,10 +75,15 @@ export async function matchScore(target, subject = {}) {
   // (weather/season) — e.g. "indoor wins when it's wet" — over the global signal.
   // As outcomes accumulate, scores shift toward what works for this kind of family
   // under these conditions. The whole brain improves from the loop.
-  const seg = subject.segment || (fam && fam.segment) || null;
   const ctx = subject.context || subject.weather || target.weather || null;
-  const learned = tags.length ? tags.reduce((s, t) => s + tagPrior(t, seg, ctx), 0) / tags.length : 0.5;
+  const breaks = tags.map((t) => priorBreakdown(t, seg, ctx));
+  const learned = breaks.length ? breaks.reduce((s, b) => s + b.value, 0) / breaks.length : 0.5;
   raw = raw * 0.85 + learned * 0.15;
+
+  // "Why this changed": surface the single strongest learned driver, so the score
+  // is auditable rather than a black box.
+  const drv = breaks.flatMap((b) => b.drivers.map((d) => ({ tag: b.tag, ...d }))).sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect))[0];
+  if (drv) reasons.push(`learned: "${drv.tag}" ${drv.effect > 0 ? "does better" : "does worse"} with ${drv.factor} (${drv.effect > 0 ? "+" : ""}${Math.round(drv.effect * 100)}%)`);
 
   const pct = Math.max(0, Math.min(100, Math.round(raw * 100)));
 

@@ -163,10 +163,29 @@ Scout gains knowledge two complementary ways, and both feed back into the brain:
    key + network, clearly labelled simulated otherwise.
 
 `GET /api/learning/state` returns the whole picture in one call —
-`{ instant: <tag priors>, durable: <distilled insights> }` — and the distilled
-insights are surfaced back on every recommendation (`recommend.learned`) and in
-the demo's "🧠 What Scout has learned" panel (with 👍/👎 buttons that feed the loop
-live).
+`{ instant: <tag priors>, durable: <distilled insights>, anomalies }` — and the
+distilled insights are surfaced back on every recommendation (`recommend.learned`)
+and in the demo's "🧠 What Scout has learned" panel (with 👍/👎 buttons that feed
+the loop live).
+
+**Trustworthy by design.** The loop ships with three guard rails:
+
+- **Cold‑start transfer.** A brand‑new family with no history inherits its
+  segment's taste from interaction #1 (`getProfile` seeds likes/dislikes from
+  `segmentSeed`), so the first recommendation is already tuned, not neutral.
+  `GET /api/learning/seed?segment=…` shows the seed. *(Verified: a new
+  toddler‑family user scored a shaded splash park 82/Good on its first request.)*
+- **"Why this changed."** Every learned adjustment is auditable. The Match Score
+  surfaces the single strongest learned driver as a reason (e.g. *learned: "shaded"
+  does better with toddler‑family families + hot conditions (+38%)*), and
+  `GET /api/learning/explain?tag=…&segment=…&context=…` returns the full breakdown
+  (global vs specialized prior, confidence, drivers).
+- **Forget / reset / anomaly guard.** `GET /api/learning/anomalies` flags tags whose
+  recent feedback swings hard from their long‑run rate (a streak worth a human
+  look); `POST /api/learning/forget {tag?,segment?,context?,before?,userId?}` drops
+  a bad slice (e.g. one glitchy user); `POST /api/learning/reset` clears all
+  interactions (the distilled corpus insights are kept). Combined with the 45‑day
+  recency half‑life, a bad streak can't permanently skew the brain.
 
 Together: interactions → learned priors (instant, statistical, fold into the Match
 Score at 15%) + auto/­manual prompt‑distilled insights and opt‑in internet research

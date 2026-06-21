@@ -146,12 +146,20 @@ async function loadLearned(){
     const breakdown = obj => Object.entries(obj||{}).map(([key,rows])=>`<div class="reason">· ${key}: ${rows.map(r=>`${r.tag} ${Math.round(r.acceptance*100)}%`).join(", ")}</div>`).join("");
     const segs = breakdown(k.by_segment), ctxs = breakdown(k.by_context);
     const durable = (s.durable||[]).map(d=>`<div class="reason">• ${d.insight}</div>`).join("") || "<div class='reason'>no distilled insights yet — teach Scout a few picks</div>";
-    el.innerHTML = `<div class="pick"><div class="muted">instant (${k.interactions||0} interactions, ${k.learned_tags||0} tags · ${k.half_life_days||45}‑day recency)</div>
+    const anoms = (s.anomalies||[]).length ? `<div class="reason" style="color:#92400e">⚠ unusual swing: ${s.anomalies.map(a=>`${a.tag} ${a.swing>0?"+":""}${Math.round(a.swing*100)}%`).join(", ")}</div>` : "";
+    el.innerHTML = `<div class="pick"><div class="top"><div class="muted">instant (${k.interactions||0} interactions, ${k.learned_tags||0} tags · ${k.half_life_days||45}‑day recency)</div><button class="ghost" style="padding:2px 8px;font-size:11px" onclick="resetLearning()">reset</button></div>
       <div class="reason">works best: ${best}</div>
       ${segs?`<div class="muted" style="margin-top:6px">by who's going</div>${segs}`:""}
-      ${ctxs?`<div class="muted" style="margin-top:6px">by weather/season</div>${ctxs}`:""}</div>
+      ${ctxs?`<div class="muted" style="margin-top:6px">by weather/season</div>${ctxs}`:""}
+      ${anoms}</div>
       <div class="pick"><div class="muted">durable insights</div>${durable}</div>`;
   } catch(e){ el.innerHTML = "<span class='muted'>learning API not reachable</span>"; }
+}
+
+async function resetLearning(){
+  if(!confirm("Clear all learned interactions? (distilled insights are kept)")) return;
+  await jpost("/learning/reset",{});
+  loadLearned();
 }
 
 async function research(){

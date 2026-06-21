@@ -6,12 +6,26 @@
 // identity join key. In-house JSON store; no external service.
 
 import { load, save } from "../lms/jsondb.js";
+import { segmentSeed } from "../learning/loop.js";
 
 const FILE = "match_behavior";
 
-export function getProfile(userId) {
+// Get a user's profile. For a brand-new user (no signals yet) with a known
+// segment, COLD-START TRANSFER seeds their likes/dislikes from what that segment
+// tends to accept — so their very first recommendation is already tuned, not
+// neutral. The seed is marked so it's clearly inherited, not personally observed.
+export function getProfile(userId, segment) {
   const db = load(FILE, {});
-  return db[userId] || { userId, likes: [], dislikes: [], budget_cap: null, ratings: [], signals: 0 };
+  const existing = db[userId];
+  if (existing && existing.signals > 0) return existing;
+  const base = existing || { userId, likes: [], dislikes: [], budget_cap: null, ratings: [], signals: 0 };
+  if (segment && !existing) {
+    const seed = segmentSeed(segment);
+    if (seed.likes.length || seed.dislikes.length) {
+      return { ...base, likes: seed.likes.slice(0, 6), dislikes: seed.dislikes.slice(0, 6), seeded_from: norm(segment) };
+    }
+  }
+  return base;
 }
 
 function persist(p) {

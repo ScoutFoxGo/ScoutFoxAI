@@ -115,26 +115,132 @@ function smooth(wa, ws) {
 // specific evidence exists — so a thin slice still leans on the global signal,
 // and a well-sampled one trusts itself. The Match Score folds this in.
 export function tagPrior(tag, segment, context) {
+  return priorBreakdown(tag, segment, context).value;
+}
+
+// Like tagPrior, but returns WHY: the global prior, the specialized prior, the
+// confidence in the specialization, and the drivers that moved the number off
+// neutral/global (segment, context, recent trend). Powers "why this changed".
+export function priorBreakdown(tag, segment, context) {
   const t = norm(tag);
   const seg = segment ? norm(segment) : null;
   const qtoks = queryTokens(context);
   const now = Date.now();
-  let gwa = 0, gws = 0, swa = 0, sws = 0;
+  let gwa = 0, gws = 0, ua = 0, un = 0, swa = 0, sws = 0;
   for (const ev of load(EVENTS, [])) {
     if (!ev.tags.includes(t)) continue;
     const w = recencyWeight(ev, now);
     const v = eventValue(ev);
-    gwa += w * v; gws += w;
+    gwa += w * v; gws += w; ua += v; un += 1;
     if (seg && ev.segment !== seg) continue;
     if (qtoks.length && !qtoks.some((q) => (ev.ctx || []).includes(q))) continue;
     swa += w * v; sws += w;
   }
   const global = smooth(gwa, gws) ?? 0.5;
-  if (!seg && !qtoks.length) return global;
+  const globalFlat = un ? (ua + 1) / (un + 2) : 0.5; // unweighted, to isolate recency
   const specific = smooth(swa, sws);
-  if (specific == null) return global;
-  const conf = Math.min(1, sws / 10); // full trust at ~10 weighted samples
-  return specific * conf + global * (1 - conf);
+  let value = global, conf = 0;
+  if ((seg || qtoks.length) && specific != null) {
+    conf = Math.min(1, sws / 10);
+    value = specific * conf + global * (1 - conf);
+  }
+  const drivers = [];
+  if (specific != null && (seg || qtoks.length)) {
+    const d = specific - global;
+    if (Math.abs(d) >= 0.05) {
+      const factor = [seg ? `${seg} families` : null, ...qtoks.map((q) => `${q} conditions`)].filter(Boolean).join(" + ");
+      drivers.push({ factor, effect: Number(d.toFixed(2)) });
+    }
+  }
+  const rd = global - globalFlat;
+  if (Math.abs(rd) >= 0.05) drivers.push({ factor: "recent trend", effect: Number(rd.toFixed(2)) });
+  drivers.sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect));
+  return {
+    tag: t,
+    value: Number(value.toFixed(2)),
+    global: Number(global.toFixed(2)),
+    specific: specific == null ? null : Number(specific.toFixed(2)),
+    confidence: Number(conf.toFixed(2)),
+    drivers,
+  };
+}
+
+// COLD-START TRANSFER: the tags a segment tends to accept / reject, so a brand-new
+// family with no personal history can inherit their segment's taste from
+// interaction #1 instead of starting neutral. Returns recency/rating-weighted
+// likes (>=0.6) and dislikes (<=0.4) for the segment.
+export function segmentSeed(segment, { min = 0.6, max = 0.4 } = {}) {
+  if (!segment) return { likes: [], dislikes: [] };
+  const seg = norm(segment);
+  const now = Date.now();
+  const map = {};
+  for (const ev of load(EVENTS, [])) {
+    if (ev.segment !== seg) continue;
+    const w = recencyWeight(ev, now);
+    const v = eventValue(ev);
+    for (const t of ev.tags) bump(map, t, w, v);
+  }
+  const rows = Object.entries(map).map(([tag, s]) => ({ tag, r: smooth(s.wa, s.ws), n: s.ws }));
+  return {
+    likes: rows.filter((x) => x.r >= min && x.n >= 1).sort((a, b) => b.r - a.r).map((x) => x.tag),
+    dislikes: rows.filter((x) => x.r <= max && x.n >= 1).sort((a, b) => a.r - b.r).map((x) => x.tag),
+  };
+}
+
+// --- forget / reset controls (admin) ---
+// Drop events matching ANY combination of criteria (e.g. a bad streak from one
+// user, or everything before a date). Requires at least one criterion so it can't
+// silently wipe the whole log. Returns how many were removed.
+export function forget({ tag, segment, context, before, userId } = {}) {
+  const t = tag ? norm(tag) : null;
+  const seg = segment ? norm(segment) : null;
+  const qtoks = queryTokens(context);
+  const cut = before ? new Date(before).getTime() : null;
+  if (!t && !seg && !qtoks.length && !cut && !userId) throw new Error("forget needs at least one of: tag, segment, context, before, userId");
+  const events = load(EVENTS, []);
+  const keep = events.filter((ev) => {
+    // an event is forgotten only if it matches every provided criterion
+    if (t && !ev.tags.includes(t)) return true;
+    if (seg && ev.segment !== seg) return true;
+    if (qtoks.length && !qtoks.some((q) => (ev.ctx || []).includes(q))) return true;
+    if (userId && ev.userId !== userId) return true;
+    if (cut && !(ev.ts < cut)) return true;
+    return false;
+  });
+  const removed = events.length - keep.length;
+  save(EVENTS, keep);
+  return { removed, remaining: keep.length };
+}
+
+// Wipe all learned interactions (durable distilled insights in the corpus stay).
+export function reset() {
+  const n = load(EVENTS, []).length;
+  save(EVENTS, []);
+  return { removed: n, remaining: 0 };
+}
+
+// Guard rail: flag tags whose RECENT window swings hard from their long-run rate,
+// which usually means a feedback streak (genuine or bad) worth a human look.
+export function anomalies({ window = 25, threshold = 0.35 } = {}) {
+  const events = load(EVENTS, []);
+  const recent = events.slice(-window);
+  const tagsIn = (arr) => {
+    const m = {};
+    for (const ev of arr) for (const t of ev.tags) bump(m, t, 1, eventValue(ev));
+    return m;
+  };
+  const all = tagsIn(events);
+  const win = tagsIn(recent);
+  const out = [];
+  for (const [tag, s] of Object.entries(win)) {
+    if (s.ws < 3) continue; // need a few recent samples
+    const recentRate = smooth(s.wa, s.ws);
+    const overall = smooth(all[tag].wa, all[tag].ws);
+    const delta = recentRate - overall;
+    if (Math.abs(delta) >= threshold) out.push({ tag, recent: Number(recentRate.toFixed(2)), overall: Number(overall.toFixed(2)), swing: Number(delta.toFixed(2)) });
+  }
+  out.sort((a, b) => Math.abs(b.swing) - Math.abs(a.swing));
+  return { window, threshold, flagged: out };
 }
 
 // --- reporting: aggregate the whole log once for the knowledge panel ---
