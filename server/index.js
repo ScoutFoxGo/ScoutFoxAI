@@ -93,7 +93,7 @@ app.get("/api", (_req, res) => {
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
-      health: ["GET /api/health", "GET /api/status"],
+      health: ["GET /api/health", "GET /api/status", "GET /api/selftest"],
     },
     docs: "See HANDOFF.md in the repository.",
   });
@@ -120,6 +120,18 @@ function integrationStatus() {
     signals_reddit: has("REDDIT_API_KEY") ? "live" : "mock",
   };
 }
+
+// Actively ping each configured provider (Anthropic, Duffel, Stripe) and report
+// live/failed/not-configured. Makes outbound calls — succeeds from a host with
+// internet to those providers. Behind the API key when SCOUTFOX_API_KEY is set.
+app.get("/api/selftest", async (_req, res) => {
+  try {
+    const { runSelfTest } = await import("./selftest.js");
+    res.json(await runSelfTest());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.get("/api/status", (_req, res) => {
   const integrations = integrationStatus();
