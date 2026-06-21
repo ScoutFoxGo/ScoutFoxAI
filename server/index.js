@@ -26,6 +26,8 @@ import adminRouter from "./modules/admin.routes.js";
 import { logTrace } from "./modules/admin.js";
 import decisionRouter from "./decision/routes.js";
 import matchRouter from "./match/routes.js";
+import personaRouter from "./persona/routes.js";
+import destinationRouter from "./destination/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -95,6 +97,11 @@ app.use("/api/decision", decisionRouter);
 // Match & Confidence: Scout Match Score, Decision Confidence bands, Experience
 // Prediction, and the Behavior Learning Loop.
 app.use("/api/match", matchRouter);
+
+// Persona/Segmentation (Audience Segmentation -> User Personas) and Destination
+// Intelligence (Competitive Intelligence -> Destination Intelligence).
+app.use("/api/persona", personaRouter);
+app.use("/api/destination", destinationRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

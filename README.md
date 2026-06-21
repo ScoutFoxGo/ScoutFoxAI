@@ -125,6 +125,31 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## The Lickly framework: Audience → Insights → Recommendation → Execution → Measurement
+
+Scout's decision-intelligence loop, mapped to modules:
+
+| Stage | Scout | Module |
+|---|---|---|
+| Audience / Segmentation | Family discovery + **User Personas** | `match/behavior.js`, `persona/` |
+| Insights | Destination Intelligence | `destination/` |
+| Recommendation | Match Score + Decision Layer | `match/`, `decision/` |
+| Execution | Trip planning | `decision/` |
+| Measurement | Satisfaction analytics | `modules/admin.js` (feedback/traces) |
+
+**Persona / Segmentation** (`server/persona/`) — `POST /api/persona/classify`
+classifies a family into a planning persona (Default Planner, Time-Starved
+Couple, Multigenerational Organizer, Solo, Local Explorer) and a life stage (New
+Parent → Family Builder → Established Family → Empty Nester → Retiree), and emits
+recommendation tuning (pace + preferences + priorities) the Decision Layer can
+default from.
+
+**Destination Intelligence** (`server/destination/`) — `GET
+/api/destination/:name/intel` returns sentiment (community-signals adapter),
+**family-fit** (Match Score), what it's best for, likely pain points, and best
+season; `POST /api/destination/compare {a, b, familyProfileId}` picks one for a
+family and explains why (Scout-style single recommendation).
+
 ## Match & Confidence (`server/match/`)
 
 Turns "100 options" into a confident read, and learns each user over time.
