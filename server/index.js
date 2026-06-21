@@ -30,6 +30,7 @@ import personaRouter from "./persona/routes.js";
 import destinationRouter from "./destination/routes.js";
 import modesRouter from "./modes/routes.js";
 import harmonyRouter from "./harmony/routes.js";
+import flightsRouter from "./flights/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -66,6 +67,7 @@ app.get("/api", (_req, res) => {
       destination: ["GET /api/destination/:name/intel", "POST /api/destination/compare"],
       modes: ["GET /api/modes", "POST /api/modes/:mode/route"],
       harmony: ["POST /api/harmony/decide"],
+      flights: ["POST /api/flights/search"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
@@ -148,6 +150,9 @@ app.use("/api/destination", destinationRouter);
 // (group decisions).
 app.use("/api/modes", modesRouter);
 app.use("/api/harmony", harmonyRouter);
+
+// Real flight search via Duffel (live with DUFFEL_API_KEY).
+app.use("/api/flights", flightsRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
