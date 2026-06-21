@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout — your family trip planner</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); display:flex; flex-direction:column; height:100vh; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+  header h1 { font-size:17px; margin:0; }
+  header p { margin:0; color:var(--muted); font-size:12px; }
+  header .status { margin-left:auto; font-size:12px; color:var(--muted); }
+  main { flex:1 1 auto; overflow-y:auto; }
+  .wrap { max-width:760px; margin:0 auto; padding:20px 16px 8px; }
+  .msg { display:flex; margin:10px 0; gap:10px; }
+  .msg .av { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; flex:0 0 auto; }
+  .msg.scout .av { background:#fff2ea; }
+  .msg.user { flex-direction:row-reverse; }
+  .msg.user .av { background:#eef2ff; }
+  .bubble { padding:11px 14px; border-radius:14px; font-size:14.5px; line-height:1.5; max-width:80%; }
+  .msg.scout .bubble { background:#fff; border:1px solid var(--line); border-top-left-radius:4px; }
+  .msg.user .bubble { background:var(--fox); color:#fff; border-top-right-radius:4px; }
+  .plan { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin:8px 0 8px 40px; max-width:80%; }
+  .plan h3 { margin:0 0 2px; font-size:14px; }
+  .plan .sub { color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .day { border-top:1px solid var(--line); padding:8px 0; }
+  .day b { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .item { display:flex; gap:8px; margin:4px 0; font-size:13.5px; }
+  .item .slot { color:var(--muted); min-width:64px; text-transform:capitalize; }
+  .item .why { color:var(--muted); font-size:12px; }
+  .pick { margin-top:10px; padding:10px; background:#fff7f3; border:1px solid #f6d9c9; border-radius:10px; }
+  .pick .lbl { font-size:11px; font-weight:700; color:var(--fox-dark); text-transform:uppercase; letter-spacing:.05em; }
+  .fb { margin-top:8px; display:flex; gap:6px; }
+  .fb button { font-size:12px; padding:4px 10px; }
+  .est { margin-top:8px; font-size:12px; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 2px 40px; max-width:80%; }
+  .chip { background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 12px; font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .chip:hover { border-color:var(--fox); color:var(--fox-dark); }
+  footer { flex:0 0 auto; border-top:1px solid var(--line); background:#fff; padding:12px 16px; }
+  .composer { max-width:760px; margin:0 auto; display:flex; gap:8px; }
+  .composer input { flex:1; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14.5px; }
+  .composer button { background:var(--fox); color:#fff; border:0; border-radius:12px; padding:0 18px; font-weight:600; cursor:pointer; font-size:14px; }
+  .composer button:hover { background:var(--fox-dark); }
+  button { cursor:pointer; }
+  .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:8px; }
+  .typing { color:var(--muted); font-size:13px; font-style:italic; margin:8px 0 8px 40px; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🦊</span>
+  <div><h1>Scout</h1><p>Plan Less. Explore More. — your family trip planner</p></div>
+  <span class="status" id="status"></span>
+</header>
+<main id="main"><div class="wrap" id="feed"></div></main>
+<footer>
+  <div class="composer">
+    <input id="box" placeholder="Tell Scout about your trip… e.g. a relaxed weekend in San Diego with a toddler" autofocus />
+    <button onclick="send()">Send</button>
+  </div>
+</footer>
+<script>
+const API = location.origin + "/api";
+let sessionId = null;
+const feed = document.getElementById("feed");
+const box = document.getElementById("box");
+
+function scroll(){ const m=document.getElementById("main"); m.scrollTop = m.scrollHeight; }
+function esc(s){ return String(s||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+function addMsg(role, text){
+  const d=document.createElement("div"); d.className="msg "+(role==="user"?"user":"scout");
+  d.innerHTML=`<div class="av">${role==="user"?"🧑":"🦊"}</div><div class="bubble">${esc(text)}</div>`;
+  feed.appendChild(d); scroll();
+}
+function addTyping(){ const d=document.createElement("div"); d.className="typing"; d.id="typing"; d.textContent="Scout is planning…"; feed.appendChild(d); scroll(); }
+function rmTyping(){ const t=document.getElementById("typing"); if(t) t.remove(); }
+
+function renderPlan(plan, rec){
+  if(!plan) return;
+  const d=document.createElement("div"); d.className="plan";
+  let html=`<h3>${esc(plan.destination)} — ${plan.days?plan.days.length:0}-day plan</h3><p class="sub">${esc(plan.summary||"")} · confidence ${esc(plan.confidence||"")}</p>`;
+  (plan.days||[]).forEach(day=>{
+    html+=`<div class="day"><b>Day ${day.day}</b>`;
+    (day.items||[]).forEach(it=>{ html+=`<div class="item"><span class="slot">${esc(it.slot)}</span><span><b>${esc(it.title)}</b><div class="why">${esc(it.reason||"")}</div></span></div>`; });
+    html+=`</div>`;
+  });
+  const best = rec && rec.best_match;
+  if(best){
+    const tags=JSON.stringify(best.tags||[]);
+    html+=`<div class="pick"><div class="lbl">⭐ Top pick</div><b>${esc(best.title)}</b><div class="why">${esc(best.why_fits||"")}</div>
+      <div class="why">best for: ${esc(best.best_for||"—")} · ${esc(best.estimated_cost||"")}</div>
+      <div class="fb"><button class="ghost" onclick='fb(${tags},true,this)'>👍 Love it</button><button class="ghost" onclick='fb(${tags},false,this)'>👎 Not for us</button></div></div>`;
+  }
+  if(plan.estimate) html+=`<div class="est">Estimated all-in ~$${plan.estimate.total} (flight $${plan.estimate.flight} + stay $${plan.estimate.stay_per_night}/night × ${plan.estimate.nights} + activities $${plan.estimate.activities})</div>`;
+  d.innerHTML=html; feed.appendChild(d); scroll();
+}
+
+function renderChips(suggestions){
+  const old=document.getElementById("chips"); if(old) old.remove();
+  if(!suggestions||!suggestions.length) return;
+  const c=document.createElement("div"); c.className="chips"; c.id="chips";
+  suggestions.forEach(s=>{ const b=document.createElement("button"); b.className="chip"; b.textContent=s; b.onclick=()=>{ box.value=s; send(); }; c.appendChild(b); });
+  feed.appendChild(c); scroll();
+}
+
+async function fb(tags, accepted, btn){
+  btn.parentElement.innerHTML = "<span class='why'>Thanks — Scout just learned from that 🧠</span>";
+  await fetch(`${API}/assistant/session/${sessionId}/feedback`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tags, accepted, rating: accepted?5:2})});
+}
+
+async function send(){
+  const text = box.value.trim(); if(!text) return;
+  box.value=""; addMsg("user", text); addTyping();
+  try{
+    const r = await fetch(`${API}/assistant/message`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ sessionId, message:text })});
+    const data = await r.json(); rmTyping();
+    sessionId = data.sessionId;
+    addMsg("scout", data.reply);
+    if(data.plan) renderPlan(data.plan, data.recommendation);
+    renderChips(data.suggestions);
+  }catch(e){ rmTyping(); addMsg("scout","Sorry — I couldn't reach the planner. Is the server running?"); }
+}
+
+box.addEventListener("keydown", e=>{ if(e.key==="Enter") send(); });
+
+// greet + status
+(async()=>{
+  try{ const h=await (await fetch(`${API}/health`)).json(); document.getElementById("status").textContent = h.anthropic?"● live Claude":"● demo mode"; }catch(e){}
+  const r = await fetch(`${API}/assistant/message`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ message:"" })});
+  const data = await r.json(); sessionId=data.sessionId; addMsg("scout", data.reply); renderChips(data.suggestions);
+})();
+</script>
+</body>
+</html>

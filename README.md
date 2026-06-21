@@ -9,6 +9,39 @@ This is a self-contained, you-own-it implementation of the ScoutFoxAI app
 entity store with a small open-source backend you control, so the whole thing
 runs locally — and on real Claude responses the moment you add an API key.
 
+---
+
+## 🦊 Scout — the standalone planning assistant
+
+The repo has grown a second, larger product: **Scout, a conversational family
+trip‑planning assistant** that can stand on its own. It's a closed "decision
+intelligence" brain — own data, own API, self‑learning — with a chat front door.
+
+**Try it:** run the server and open **`/assistant.html`**. Tell Scout *"a relaxed
+weekend in San Diego with a toddler"* and it holds a real conversation: asks who's
+coming, classifies the family persona, composes a day‑by‑day plan with an explained
+top pick and a cost estimate, and refines it when you say *"make it cheaper"* or
+*"add a day."* 👍/👎 on a pick teaches the self‑learning loop live.
+
+**The API:** `POST /api/assistant/message { sessionId?, message }` →
+`{ reply, stage, plan, recommendation, suggestions }`. It keeps per‑conversation
+memory (`server/assistant/session.js`) and orchestrates the whole brain
+(`server/assistant/assistant.js`): slot‑fills the request across turns → persona
+classify → Decision Layer (understand → reason → compose → recommend) → conversational
+refine → self‑learning feedback. Deterministic and fully offline; with an Anthropic
+key it polishes replies into Scout's voice (never inventing facts).
+
+**Is it really standalone?** Yes. It needs no other website to function — it has its
+own conversational UI, its own API, its own data + learning, and a single‑service
+deploy. It's *designed* to also plug into `scoutfoxgo.com` later (via `userId` /
+`familyProfileId`), but it doesn't depend on it. Add an `ANTHROPIC_API_KEY` for live
+language and the travel keys in `API_KEYS.md` for live inventory/booking; until then
+it runs end‑to‑end on mock data.
+
+Everything below documents the engines Scout orchestrates.
+
+---
+
 ## What's here
 
 ```

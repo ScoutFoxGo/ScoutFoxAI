@@ -36,6 +36,7 @@ import finderRouter from "./finder/routes.js";
 import crowdsenseRouter from "./crowdsense/routes.js";
 import companionRouter from "./companion/routes.js";
 import learningRouter from "./learning/routes.js";
+import assistantRouter from "./assistant/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -66,6 +67,7 @@ app.get("/api", (_req, res) => {
     version: "1.0",
     status: "ok",
     endpoints: {
+      assistant: ["POST /api/assistant/message", "GET /api/assistant/session/:id", "POST /api/assistant/session/:id/reset", "POST /api/assistant/session/:id/feedback"],
       decision: ["POST /api/decision/plan", "POST /api/decision/recommend", "POST /api/decision/refine"],
       match: ["POST /api/match/score", "POST /api/match/predict", "POST /api/match/behavior", "POST /api/match/rank"],
       persona: ["POST /api/persona/classify"],
@@ -180,6 +182,10 @@ app.use("/api/companion", companionRouter);
 // Self-learning loop: record outcomes -> learned priors (fed into Match Score) +
 // prompt-distilled insights into the closed corpus.
 app.use("/api/learning", learningRouter);
+
+// The standalone product front door: a stateful conversational planning assistant
+// that orchestrates the whole brain (understand -> plan -> refine -> learn).
+app.use("/api/assistant", assistantRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
