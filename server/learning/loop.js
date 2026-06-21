@@ -13,6 +13,7 @@ import { recordSignal } from "../match/behavior.js";
 
 const EVENTS = "learning_events";
 const STATS = "learning_tagstats";
+const SEGSTATS = "learning_segstats"; // per-segment tag acceptance: { segment: { tag: {shown,accepted} } }
 const norm = (s) => String(s).toLowerCase().trim().replace(/\s+/g, "-");
 
 // Record one outcome. tags = the option's tags; accepted = did the family take it.
@@ -31,7 +32,7 @@ export function recordOutcome({ userId = "anon", tags = [], accepted, rating, se
   if (log.length > 5000) log.splice(0, log.length - 5000);
   save(EVENTS, log);
 
-  // aggregate "what works" by tag
+  // aggregate "what works" by tag — globally...
   const stats = load(STATS, {});
   for (const t of ev.tags) {
     const s = stats[t] || { shown: 0, accepted: 0 };
@@ -40,6 +41,22 @@ export function recordOutcome({ userId = "anon", tags = [], accepted, rating, se
     stats[t] = s;
   }
   save(STATS, stats);
+
+  // ...and per segment, so Scout learns differently for toddler-families vs.
+  // grandparents vs. teens. tagPrior(tag, segment) blends this with the global.
+  if (ev.segment) {
+    const seg = norm(ev.segment);
+    const segStats = load(SEGSTATS, {});
+    const bucket = segStats[seg] || {};
+    for (const t of ev.tags) {
+      const s = bucket[t] || { shown: 0, accepted: 0 };
+      s.shown += 1;
+      if (ev.accepted) s.accepted += 1;
+      bucket[t] = s;
+    }
+    segStats[seg] = bucket;
+    save(SEGSTATS, segStats);
+  }
 
   // feed the per-user behavior loop too (skip anonymous)
   if (userId && userId !== "anon") {
@@ -55,13 +72,28 @@ export function recordOutcome({ userId = "anon", tags = [], accepted, rating, se
   return ev;
 }
 
-// Learned prior for a tag: Laplace-smoothed acceptance rate in [0,1]. 0.5 with no
-// evidence, then moves toward what families actually accept. The Match Score
-// folds this in (see match/score.js).
-export function tagPrior(tag) {
-  const s = load(STATS, {})[norm(tag)];
-  if (!s || !s.shown) return 0.5;
+// Laplace-smoothed acceptance rate in [0,1] for a stats bucket. 0.5 with no
+// evidence, then moves toward what families actually accept.
+function rate(s) {
+  if (!s || !s.shown) return null;
   return (s.accepted + 1) / (s.shown + 2);
+}
+
+// Learned prior for a tag, optionally specialized to a segment. When segment
+// evidence exists it's blended over the global prior, weighted by how much
+// segment data we have (confidence grows with sample size) — so a segment with
+// few outcomes still leans on the global signal, and a well-sampled segment
+// trusts its own. The Match Score folds this in (see match/score.js).
+export function tagPrior(tag, segment) {
+  const t = norm(tag);
+  const global = rate(load(STATS, {})[t]) ?? 0.5;
+  if (!segment) return global;
+  const segBucket = load(SEGSTATS, {})[norm(segment)] || {};
+  const s = segBucket[t];
+  const segRate = rate(s);
+  if (segRate == null) return global;
+  const w = Math.min(1, s.shown / 10); // full trust at ~10 segment samples
+  return segRate * w + global * (1 - w);
 }
 
 // What the brain has learned so far.
@@ -75,10 +107,23 @@ export function knowledge() {
     acceptance: Number(((s.accepted + 1) / (s.shown + 2)).toFixed(2)),
   }));
   rows.sort((a, b) => b.acceptance - a.acceptance);
+  // Per-segment top tags, so you can see Scout learning differently per audience.
+  const segStats = load(SEGSTATS, {});
+  const by_segment = Object.fromEntries(
+    Object.entries(segStats).map(([seg, bucket]) => [
+      seg,
+      Object.entries(bucket)
+        .map(([tag, s]) => ({ tag, acceptance: Number(((s.accepted + 1) / (s.shown + 2)).toFixed(2)) }))
+        .sort((a, b) => b.acceptance - a.acceptance)
+        .slice(0, 3),
+    ])
+  );
+
   return {
     interactions: events.length,
     learned_tags: rows.length,
     works_best: rows.slice(0, 5),
     avoid: rows.filter((r) => r.acceptance < 0.45).slice(0, 5),
+    by_segment,
   };
 }

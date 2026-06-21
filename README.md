@@ -130,12 +130,17 @@ key. Everything else uses live data the moment its credential is set.
 Scout gains knowledge two complementary ways, and both feed back into the brain:
 
 1. **From interactions (statistical, every use).** `POST /api/learning/outcome
-   {tags, accepted, rating, userId?}` records whether a recommendation was taken.
-   That updates (a) the per-user behavior profile and (b) an aggregate
-   **acceptance prior per tag** ("what families actually accept"). The **Match
-   Score folds that prior in (15%)**, so as outcomes accumulate, recommendations
-   shift toward what works — across the whole brain. `GET /api/learning/knowledge`
-   shows what it's learned.
+   {tags, accepted, rating, userId?, segment?}` records whether a recommendation
+   was taken. That updates (a) the per-user behavior profile, (b) a global
+   **acceptance prior per tag** ("what families actually accept"), and (c) a
+   **per-segment prior** so Scout learns differently for toddler-families vs.
+   grandparents vs. teens. The **Match Score folds that prior in (15%)**,
+   specialized to the family's segment when known and blended over the global
+   signal by sample size — so as outcomes accumulate, recommendations shift toward
+   what works *for this kind of family specifically*. `GET /api/learning/knowledge`
+   shows what it's learned (including a `by_segment` breakdown). *(Demonstrated:
+   the same `shaded` tag learned to 0.82 for toddler‑families and 0.18 for teens
+   while staying 0.50 globally.)*
 
 2. **From prompts (distillation, durable).** `POST /api/learning/distill` takes the
    raw acceptance aggregates and asks the model to write 2–3 concise, reusable
