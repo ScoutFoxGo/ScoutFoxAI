@@ -44,10 +44,31 @@ app.use(express.json({ limit: "2mb" }));
 // `X-API-Key` (or `Authorization: Bearer`) header. Unset = open (dev).
 const API_KEY = process.env.SCOUTFOX_API_KEY;
 app.use("/api", (req, res, next) => {
-  if (!API_KEY || req.path === "/health") return next();
+  if (!API_KEY || req.path === "/health" || req.path === "/") return next();
   const sent = req.get("x-api-key") || (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (sent === API_KEY) return next();
   res.status(401).json({ error: "missing or invalid API key" });
+});
+
+// Branded API root — a discoverable index of the ScoutFoxGo API.
+app.get("/api", (_req, res) => {
+  res.json({
+    name: "ScoutFoxGo API",
+    tagline: "Plan Less. Explore More.",
+    version: "1.0",
+    status: "ok",
+    endpoints: {
+      decision: ["POST /api/decision/plan", "POST /api/decision/recommend", "POST /api/decision/refine"],
+      match: ["POST /api/match/score", "POST /api/match/predict", "POST /api/match/behavior", "POST /api/match/rank"],
+      persona: ["POST /api/persona/classify"],
+      destination: ["GET /api/destination/:name/intel", "POST /api/destination/compare"],
+      guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
+      scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
+      admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
+      health: ["GET /api/health"],
+    },
+    docs: "See HANDOFF.md in the repository.",
+  });
 });
 
 app.get("/api/health", (_req, res) => {

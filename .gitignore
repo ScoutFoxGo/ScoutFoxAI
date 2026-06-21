@@ -4,3 +4,6 @@ dist/
 server/comparisons.json
 *.log
 .DS_Store
+
+# runtime stores (match behavior etc. written under lms/)
+server/lms/match_*.json
