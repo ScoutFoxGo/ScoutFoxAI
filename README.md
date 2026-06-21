@@ -125,6 +125,29 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## How Scout self-learns (`server/learning/`)
+
+Scout gains knowledge two complementary ways, and both feed back into the brain:
+
+1. **From interactions (statistical, every use).** `POST /api/learning/outcome
+   {tags, accepted, rating, userId?}` records whether a recommendation was taken.
+   That updates (a) the per-user behavior profile and (b) an aggregate
+   **acceptance prior per tag** ("what families actually accept"). The **Match
+   Score folds that prior in (15%)**, so as outcomes accumulate, recommendations
+   shift toward what works — across the whole brain. `GET /api/learning/knowledge`
+   shows what it's learned. *(Demonstrated: teaching accept‑shaded / reject‑long‑day
+   moved a shaded activity up and a long‑day one down with no code change.)*
+
+2. **From prompts (distillation).** `POST /api/learning/distill` takes the raw
+   acceptance aggregates and asks the model to write 2–3 concise, reusable
+   planning insights, then stores them in the **closed corpus** (so the Scout
+   Guide tutor and the team can use them). This is the "gaining knowledge with
+   prompts" half; it runs deterministically offline and is LLM‑written with a key.
+
+Together: interactions → learned priors (instant, statistical) + periodic
+prompt‑distilled insights (durable, human‑readable) → both make the next answer
+better. Closed and in‑house.
+
 ## Predictive intelligence (`server/crowdsense/`, `server/companion/`)
 
 - **Scout CrowdSense™** — `POST /api/crowdsense/predict` and `/best-day`: predicts

@@ -7,3 +7,6 @@ server/comparisons.json
 
 # runtime stores (match behavior etc. written under lms/)
 server/lms/match_*.json
+
+# runtime json stores written under server/lms/ (corpus, behavior, learning, admin, wallet)
+server/lms/*.json

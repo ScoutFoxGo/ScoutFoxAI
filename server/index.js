@@ -35,6 +35,7 @@ import inventoryRouter, { walletRouter } from "./inventory/routes.js";
 import finderRouter from "./finder/routes.js";
 import crowdsenseRouter from "./crowdsense/routes.js";
 import companionRouter from "./companion/routes.js";
+import learningRouter from "./learning/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -77,6 +78,7 @@ app.get("/api", (_req, res) => {
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
       companion: ["POST /api/companion/alerts"],
+      learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "POST /api/learning/distill"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
@@ -174,6 +176,10 @@ app.use("/api/finder", finderRouter);
 // Predictive intelligence: CrowdSense (crowd/wait/best-day) + Companion (alerts).
 app.use("/api/crowdsense", crowdsenseRouter);
 app.use("/api/companion", companionRouter);
+
+// Self-learning loop: record outcomes -> learned priors (fed into Match Score) +
+// prompt-distilled insights into the closed corpus.
+app.use("/api/learning", learningRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

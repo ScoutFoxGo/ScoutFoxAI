@@ -8,6 +8,7 @@
 import { getFamilyProfile } from "../scoutfoxgo/data.js";
 import { getProfile } from "./behavior.js";
 import { communitySentiment } from "./signals.js";
+import { tagPrior } from "../learning/loop.js";
 
 const W = { preference: 0.45, budget: 0.25, sentiment: 0.2, quality: 0.1 };
 
@@ -64,6 +65,13 @@ export async function matchScore(target, subject = {}) {
 
   let raw = W.preference * preference + W.budget * budget + W.sentiment * sent.score + W.quality * quality;
   raw -= Math.min(0.4, disliked.length * 0.2); // dislikes pull the score down
+
+  // SELF-LEARNING: fold in the learned prior ("what families actually accept")
+  // for these tags, blended at 15%. As outcomes accumulate, scores shift toward
+  // what works — the whole brain improves from the loop.
+  const learned = tags.length ? tags.reduce((s, t) => s + tagPrior(t), 0) / tags.length : 0.5;
+  raw = raw * 0.85 + learned * 0.15;
+
   const pct = Math.max(0, Math.min(100, Math.round(raw * 100)));
 
   return {
