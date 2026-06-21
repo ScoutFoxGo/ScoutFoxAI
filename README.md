@@ -97,6 +97,27 @@ LMS endpoints: `GET /api/lms/lessons`, `POST /api/lms/distill`,
 `POST /api/lms/learn-all`, `POST /api/lms/tutor`, `POST /api/lms/quiz/attempt`,
 `GET /api/lms/learner/:id`, `GET /api/lms/learner/:id/next`.
 
+## ScoutFoxGo AI modules (`server/modules/` + `server/scoutfoxgo/`)
+
+The AI side of the Scout Fox Go "Missing Modules" addendum, operating on real
+ScoutFoxGo entities (the JSON master file in `scoutfoxgo/seed.json` — point
+`scoutfoxgo/data.js` at the live DB later, same signatures).
+
+- **Mood AI** (2.6) — reshapes a trip's `trip_days` to a mood + family
+  preferences. `POST /api/scout/mood/adapt {tripId, mood, familyProfileId}`
+- **Scout Scribe** (2.8) — story-style trip report from trip + days + scrapbook.
+  `POST /api/scout/scribe/report {tripId}`
+- **Smart Cards** (2.15) — rule-based + AI-flavored daily cards
+  (weather/mood/reward/seasonal/tip) with scheduling.
+  `POST /api/scout/cards/generate {tripId, weather, mood}`
+- **RAG Knowledge Base** (2.7) — admin ingestion on top of the LMS corpus
+  (chunking, category, tags, versioning). `POST /api/lms/ingest`, `GET /api/lms/kb`
+- **Scout Guide** (2.5) — the closed tutor over that corpus (see LMS above).
+
+Entity bridge: `GET /api/scout/trips`, `GET /api/scout/trips/:id`,
+`GET /api/scout/family`. All generation runs through `invokeLLM`, so it works in
+mock mode and stays swappable for a self-hosted model.
+
 ## Adding a real provider (OpenAI / Gemini / Grok / Perplexity)
 
 Open `server/llm.js`, find the provider's `case` in `invokeLLM()`, and return

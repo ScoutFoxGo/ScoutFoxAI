@@ -4,8 +4,19 @@ import { listLessons, getLesson, listTopics } from "./corpus.js";
 import { distillComparison, learnFromRecent } from "./distill.js";
 import { tutor } from "./tutor.js";
 import { recordAttempt, recommendNext, progress } from "./learner.js";
+import { ingestDocument, knowledgeBase } from "./ingest.js";
 
 const router = Router();
+
+// --- RAG Knowledge Base admin (ingestion + KB overview) ---
+router.post("/ingest", (req, res) => {
+  try {
+    res.json(ingestDocument(req.body || {}));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+router.get("/kb", (_req, res) => res.json({ documents: knowledgeBase() }));
 
 // --- corpus ---
 router.get("/lessons", (_req, res) => res.json({ lessons: listLessons(), topics: listTopics() }));

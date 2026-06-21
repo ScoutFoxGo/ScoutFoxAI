@@ -1,0 +1,97 @@
+{
+  "trips": [
+    {
+      "id": "T001",
+      "trip_name": "Disney Weekend Adventure",
+      "destination": "Orlando",
+      "trip_type": "Weekend",
+      "start_date": "2025-03-12",
+      "end_date": "2025-03-14",
+      "budget_range": "Medium",
+      "who_is_going": "Meghan, Andrew, Abel (age 3)",
+      "summary_text": "A fun, toddler-friendly weekend exploring Disney with built-in rest breaks.",
+      "is_sample": true
+    },
+    {
+      "id": "T002",
+      "trip_name": "San Diego Zoo Day Trip",
+      "destination": "San Diego",
+      "trip_type": "Day Trip",
+      "start_date": "2025-04-22",
+      "end_date": "2025-04-22",
+      "budget_range": "Low",
+      "who_is_going": "Sarah + 2 kids (ages 4 & 7)",
+      "summary_text": "A one-day adventure through the world-famous zoo.",
+      "is_sample": true
+    },
+    {
+      "id": "T003",
+      "trip_name": "Miami Beach Family Weekend",
+      "destination": "Miami",
+      "trip_type": "Weekend",
+      "start_date": "2025-06-10",
+      "end_date": "2025-06-12",
+      "budget_range": "Medium",
+      "who_is_going": "Mom + 1 child age 5",
+      "summary_text": "A warm-weather getaway with splash zones, food trucks, and quiet time.",
+      "is_sample": true
+    },
+    {
+      "id": "T004",
+      "trip_name": "Paris 4-Day Family Explorer",
+      "destination": "Paris",
+      "trip_type": "Vacation",
+      "start_date": "2025-07-01",
+      "end_date": "2025-07-04",
+      "budget_range": "Higher",
+      "who_is_going": "Family of 4, kids ages 6 & 9",
+      "summary_text": "Kid-friendly Paris trip with parks, bakeries, and light sightseeing.",
+      "is_sample": true
+    }
+  ],
+  "trip_days": [
+    { "id": "TD001", "trip_id": "T001", "day_number": 1, "morning_activity": "Magic Kingdom: Fantasyland rides", "midday_activity": "Lunch at Pinocchio Village Haus", "afternoon_activity": "Parade + Dumbo ride", "evening_activity": "Hotel pool + early bedtime", "scout_tip": "Use mobile order for meals—saves 20–30 minutes." },
+    { "id": "TD002", "trip_id": "T001", "day_number": 2, "morning_activity": "Animal Kingdom safari", "midday_activity": "Lunch at Harambe Market", "afternoon_activity": "Triceratops Spin + DinoLand", "evening_activity": "Back to hotel for naps", "scout_tip": "Pack light rain ponchos—even sunny days surprise you." },
+    { "id": "TD003", "trip_id": "T001", "day_number": 3, "morning_activity": "Character breakfast", "midday_activity": "Stroll Main Street", "afternoon_activity": "Small souvenir shopping", "evening_activity": "Drive home", "scout_tip": "Take photos in the morning before crowds build." },
+    { "id": "TD004", "trip_id": "T002", "day_number": 1, "morning_activity": "Arrival at Zoo entrance", "midday_activity": "Kids Zoo petting area", "afternoon_activity": "Skyfari aerial tram", "evening_activity": "Giraffe feeding deck", "scout_tip": "Be sure to rent a stroller—it helps even big kids later." },
+    { "id": "TD005", "trip_id": "T003", "day_number": 1, "morning_activity": "Beach walk + shell hunt", "midday_activity": "Food truck lunch", "afternoon_activity": "Children’s splash pad", "evening_activity": "Ice cream + sunset", "scout_tip": "Bring a change of clothes—kids WILL get soaked." },
+    { "id": "TD006", "trip_id": "T003", "day_number": 2, "morning_activity": "South Beach playground", "midday_activity": "Ocean time", "afternoon_activity": "Nap break indoors", "evening_activity": "Dinner at outdoor café", "scout_tip": "Freeze water bottles overnight for all-day cooling." },
+    { "id": "TD007", "trip_id": "T004", "day_number": 1, "morning_activity": "Boulangerie breakfast", "midday_activity": "Luxembourg Gardens playground", "afternoon_activity": "Picnic at the park", "evening_activity": "Seine river walk", "scout_tip": "Let kids choose one treat each day." },
+    { "id": "TD008", "trip_id": "T004", "day_number": 2, "morning_activity": "Eiffel Tower lawn play", "midday_activity": "Crepe lunch from street vendor", "afternoon_activity": "Boat cruise", "evening_activity": "Early night", "scout_tip": "Skip long lines by visiting early mornings." },
+    { "id": "TD009", "trip_id": "T004", "day_number": 3, "morning_activity": "Local market stroll", "midday_activity": "Notre Dame visit (outside)", "afternoon_activity": "Carousel ride", "evening_activity": "Bakery tasting", "scout_tip": "Paris has countless playgrounds—use them often!" },
+    { "id": "TD010", "trip_id": "T004", "day_number": 4, "morning_activity": "Breakfast & packing", "midday_activity": "Short stroll by café", "afternoon_activity": "Souvenir stop", "evening_activity": "Airport departure", "scout_tip": "Keep snacks accessible for the flight home." }
+  ],
+  "destinations": [
+    { "id": "D001", "name": "Orlando", "region": "Florida", "country": "USA", "description": "Theme park capital with top-tier family fun.", "image_url": "https://example.com/orlando.jpg" },
+    { "id": "D002", "name": "San Diego", "region": "California", "country": "USA", "description": "Beach city known for zoo, parks, and sunshine.", "image_url": "https://example.com/sandiego.jpg" },
+    { "id": "D003", "name": "Miami", "region": "Florida", "country": "USA", "description": "Bright beaches, culture, food trucks, and splash play.", "image_url": "https://example.com/miami.jpg" },
+    { "id": "D004", "name": "Paris", "region": "Ile-de-France", "country": "France", "description": "Kid-friendly parks, bakeries, and iconic sights.", "image_url": "https://example.com/paris.jpg" }
+  ],
+  "family_profiles": [
+    { "id": "FP001", "parent_name": "Meghan", "kids_info": "Abel: age 3", "preferences": "Stroller-friendly, snack breaks, water refill stops" },
+    { "id": "FP002", "parent_name": "Sarah", "kids_info": "Ava: age 4; Jackson: age 7", "preferences": "Quiet spaces, sensory-friendly, early meals" },
+    { "id": "FP003", "parent_name": "Jess", "kids_info": "Lila: age 5", "preferences": "Playgrounds, splash pads, shaded rest areas" }
+  ],
+  "packing_list_items": [
+    { "id": "P001", "category": "Kid Essentials", "item": "Diapers/Pull-ups", "is_default": true },
+    { "id": "P002", "category": "Kid Essentials", "item": "Wipes", "is_default": true },
+    { "id": "P003", "category": "Kid Essentials", "item": "Snacks & pouches", "is_default": true },
+    { "id": "P004", "category": "Kid Essentials", "item": "Sippy cup or water bottle", "is_default": true },
+    { "id": "P005", "category": "Clothes", "item": "Extra outfits (for kids)", "is_default": true },
+    { "id": "P006", "category": "Clothes", "item": "Light jacket or sweater", "is_default": true },
+    { "id": "P007", "category": "Beach", "item": "Swimwear", "is_default": true },
+    { "id": "P008", "category": "Beach", "item": "Sunscreen", "is_default": true },
+    { "id": "P009", "category": "Activities", "item": "Coloring book", "is_default": true },
+    { "id": "P010", "category": "Activities", "item": "Small toys", "is_default": true }
+  ],
+  "scrapbook_entries": [
+    { "id": "S001", "trip_name": "Disney Weekend Adventure", "favorite_moment": "Abel loved the Dumbo ride!", "photo_placeholder": "placeholder1.jpg" },
+    { "id": "S002", "trip_name": "San Diego Zoo Day Trip", "favorite_moment": "Kids fed a giraffe—best moment!", "photo_placeholder": "placeholder2.jpg" },
+    { "id": "S003", "trip_name": "Miami Beach Weekend", "favorite_moment": "Sunset ice cream on the boardwalk.", "photo_placeholder": "placeholder3.jpg" }
+  ],
+  "waitlist_signups": [
+    { "id": "W001", "name": "Amy Lopez", "email": "amy@example.com", "interest_notes": "Interested in toddler travel tools", "created_at": "2025-02-22" },
+    { "id": "W002", "name": "Josh Carter", "email": "josh@example.com", "interest_notes": "Loved the sample itinerary", "created_at": "2025-02-22" },
+    { "id": "W003", "name": "Danielle Smith", "email": "danielle@example.com", "interest_notes": "Wants international trip planning", "created_at": "2025-02-22" }
+  ]
+}
