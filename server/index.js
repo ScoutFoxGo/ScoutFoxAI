@@ -22,6 +22,8 @@ import { invokeLLM, MODEL_CATALOG } from "./llm.js";
 import { saveComparison, getComparison, recentComparisons } from "./store.js";
 import lmsRouter from "./lms/routes.js";
 import scoutRouter from "./scoutfoxgo/routes.js";
+import adminRouter from "./modules/admin.routes.js";
+import { logTrace } from "./modules/admin.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -47,7 +49,9 @@ app.post("/api/invoke", async (req, res) => {
   try {
     const started = Date.now();
     const result = await invokeLLM({ modelKey, prompt, system, maxTokens });
-    res.json({ ...result, ms: Date.now() - started });
+    const ms = Date.now() - started;
+    logTrace({ kind: "invoke", model: result.model, modelKey, ms, mocked: result.mocked });
+    res.json({ ...result, ms });
   } catch (err) {
     console.error(`invoke failed for ${modelKey}:`, err.message);
     res.status(502).json({ error: err.message, model: modelKey });
@@ -77,6 +81,10 @@ app.use("/api/lms", lmsRouter);
 // ScoutFoxGo AI modules (Mood AI, Scout Scribe, Smart Cards) operating on real
 // ScoutFoxGo trip/family entities — the AI side of the Missing Modules addendum.
 app.use("/api/scout", scoutRouter);
+
+// Administrative AI Tools (analytics, sessions, feedback, traces) for the admin
+// dashboard (Addendum 2.9).
+app.use("/api/admin", adminRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

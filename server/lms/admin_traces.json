@@ -1,0 +1,10 @@
+[
+  {
+    "at": "2026-06-21T05:01:55.609Z",
+    "kind": "invoke",
+    "model": "Claude Opus 4.8",
+    "modelKey": "claude_opus_4_8",
+    "ms": 1,
+    "mocked": true
+  }
+]

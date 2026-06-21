@@ -114,9 +114,18 @@ ScoutFoxGo entities (the JSON master file in `scoutfoxgo/seed.json` — point
   (chunking, category, tags, versioning). `POST /api/lms/ingest`, `GET /api/lms/kb`
 - **Scout Guide** (2.5) — the closed tutor over that corpus (see LMS above).
 
+- **Administrative AI Tools** (2.9) — analytics, session viewer, feedback
+  manager, trace logs for the admin dashboard: `GET /api/admin/analytics`,
+  `GET /api/admin/sessions`, `GET /api/admin/traces`, `GET|POST /api/admin/feedback`.
+
 Entity bridge: `GET /api/scout/trips`, `GET /api/scout/trips/:id`,
 `GET /api/scout/family`. All generation runs through `invokeLLM`, so it works in
 mock mode and stays swappable for a self-hosted model.
+
+**Seed the product spec into the LMS:** `cd server && npm run seed:knowledge`
+ingests the Missing Modules Addendum + `LAUNCH_DECISIONS.md` into the closed
+corpus, so Scout can answer team questions about the product itself.
+See `LAUNCH_DECISIONS.md` for the full 82-question launch decision sheet.
 
 ## Adding a real provider (OpenAI / Gemini / Grok / Perplexity)
 
