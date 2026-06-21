@@ -15,9 +15,13 @@
 
 import express from "express";
 import cors from "cors";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { invokeLLM, MODEL_CATALOG } from "./llm.js";
 import { saveComparison, getComparison, recentComparisons } from "./store.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
@@ -63,6 +67,17 @@ app.get("/api/comparisons/:id", (req, res) => {
 app.get("/api/comparisons", (_req, res) => {
   res.json({ comparisons: recentComparisons() });
 });
+
+// In production, serve the built frontend from this same service so the whole
+// app lives behind one domain. The static files are produced by `web/` build.
+// In dev, the Vite server handles the frontend and proxies /api here instead.
+const WEB_DIST = join(__dirname, "..", "web", "dist");
+if (existsSync(WEB_DIST)) {
+  app.use(express.static(WEB_DIST));
+  // SPA fallback: any non-/api route returns index.html so client-side routes
+  // like /share/:id work on a hard refresh.
+  app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(WEB_DIST, "index.html")));
+}
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => {

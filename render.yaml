@@ -1,0 +1,23 @@
+# Render blueprint. In Render: New → Blueprint → pick this repo, and it reads
+# this file. One web service runs the Express API and serves the built React
+# frontend behind a single URL.
+services:
+  - type: web
+    name: scoutfoxai
+    runtime: node
+    plan: starter
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # Set this in the Render dashboard (Environment tab) to get real Claude
+      # responses. Without it the app runs in labelled mock mode.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    # Optional: a persistent disk so saved/shared comparisons survive deploys
+    # and restarts (the JSON store writes to server/comparisons.json).
+    # Without it, shared links reset on each deploy. Uncomment to enable:
+    # disk:
+    #   name: scoutfox-data
+    #   mountPath: /opt/render/project/src/server
+    #   sizeGB: 1

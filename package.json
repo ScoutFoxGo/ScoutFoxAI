@@ -1,0 +1,13 @@
+{
+  "name": "scoutfoxai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ScoutFoxAI — multi-model AI comparison engine. Single deployable service: Express API + built React frontend.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm --prefix web install && npm --prefix web run build && npm --prefix server install",
+    "start": "node server/index.js"
+  }
+}
