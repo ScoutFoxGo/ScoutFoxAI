@@ -139,14 +139,27 @@ Scout gains knowledge two complementary ways, and both feed back into the brain:
    - **segment** — learns differently for toddler‑families vs. grandparents vs. teens;
    - **context** — learns by weather/season (e.g. "indoor wins when it's wet").
 
-   The **Match Score folds that prior in (15%)**, specialized to the family's
-   segment *and* the current context when known and blended over the global signal
-   by how much specific evidence exists — so recommendations shift toward what works
+   Each prior is a **Beta posterior** (the global mean acts as a hierarchical prior
+   of fixed strength for the specialized estimate), so thin specific evidence stays
+   near the global signal and earns independence as samples accumulate. The **Match
+   Score folds the posterior mean in (15%)**, specialized to the family's segment
+   *and* the current context when known — so recommendations shift toward what works
    *for this kind of family, under these conditions*. `GET /api/learning/knowledge`
-   shows what it's learned (with `by_segment` and `by_context` breakdowns).
-   *(Demonstrated: the same `indoor` tag learned to 0.92 when it's wet and 0.08 when
+   shows what it's learned (with `by_segment` and `by_context` breakdowns, each
+   carrying a credible interval + a `still_learning` flag).
+   *(Demonstrated: the same `indoor` tag learned to 0.86 when it's wet and 0.14 when
    clear while staying 0.50 globally; recent rejects overrode equal‑count old accepts
    (0.12); rated‑5 beat rated‑2 (0.90 vs 0.30) though both were "accepted.")*
+
+   **Active learning (explore vs exploit).** A pure recommender only ever learns
+   about what it already shows — the feedback‑loop trap. Pass `explore:true` to the
+   Match Score and it **Thompson‑samples** each tag's posterior instead of taking
+   the mean, so uncertain‑but‑promising options surface and get tried (and learned
+   from). The score carries `learning_confidence`, `still_learning`, and `exploring`
+   so the UI can say "still learning this — the score may shift." Off by default
+   (pure exploit). *(Demonstrated: an option seen once scored a flat 62 in exploit
+   mode but sampled 55–67 across explore draws; the Thompson sampler is unbiased —
+   4,000 draws averaged 0.738 against a 0.74 posterior mean.)*
 
 2. **From prompts (distillation, durable).** `POST /api/learning/distill` takes the
    raw acceptance aggregates and asks the model to write 2–3 concise, reusable

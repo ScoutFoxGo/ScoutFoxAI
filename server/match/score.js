@@ -8,7 +8,7 @@
 import { getFamilyProfile } from "../scoutfoxgo/data.js";
 import { getProfile } from "./behavior.js";
 import { communitySentiment } from "./signals.js";
-import { priorBreakdown } from "../learning/loop.js";
+import { priorBreakdown, samplePrior } from "../learning/loop.js";
 
 const W = { preference: 0.45, budget: 0.25, sentiment: 0.2, quality: 0.1 };
 
@@ -77,13 +77,29 @@ export async function matchScore(target, subject = {}) {
   // under these conditions. The whole brain improves from the loop.
   const ctx = subject.context || subject.weather || target.weather || null;
   const breaks = tags.map((t) => priorBreakdown(t, seg, ctx));
-  const learned = breaks.length ? breaks.reduce((s, b) => s + b.value, 0) / breaks.length : 0.5;
+  const meanLearned = breaks.length ? breaks.reduce((s, b) => s + b.value, 0) / breaks.length : 0.5;
+
+  // ACTIVE LEARNING: in explore mode, Thompson-sample each tag's posterior instead
+  // of taking its mean, so uncertain-but-promising options can surface and be
+  // learned from. The wider a tag's credible interval, the more its sampled score
+  // can deviate — that's the exploration. Off by default (pure exploit).
+  const widths = breaks.map((b) => b.interval[1] - b.interval[0]);
+  const avgWidth = widths.length ? widths.reduce((s, w) => s + w, 0) / widths.length : 0;
+  let learned = meanLearned, exploring = false;
+  if (subject.explore && tags.length) {
+    const sampled = tags.map((t) => samplePrior(t, seg, ctx));
+    learned = sampled.reduce((s, v) => s + v, 0) / sampled.length;
+    exploring = avgWidth > 0.25; // we're meaningfully exploring only if uncertain
+  }
   raw = raw * 0.85 + learned * 0.15;
 
   // "Why this changed": surface the single strongest learned driver, so the score
   // is auditable rather than a black box.
   const drv = breaks.flatMap((b) => b.drivers.map((d) => ({ tag: b.tag, ...d }))).sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect))[0];
   if (drv) reasons.push(`learned: "${drv.tag}" ${drv.effect > 0 ? "does better" : "does worse"} with ${drv.factor} (${drv.effect > 0 ? "+" : ""}${Math.round(drv.effect * 100)}%)`);
+  const stillLearning = breaks.some((b) => b.still_learning);
+  if (stillLearning) reasons.push("still learning this — the score may shift as more families weigh in");
+  if (exploring) reasons.push("exploring a less-certain option to learn whether it works");
 
   const pct = Math.max(0, Math.min(100, Math.round(raw * 100)));
 
@@ -92,6 +108,9 @@ export async function matchScore(target, subject = {}) {
     match_score: pct,
     band: band(pct),
     confidence: confidence(pct, profile.signals),
+    learning_confidence: Number((1 - avgWidth).toFixed(2)), // how settled the learned signal is
+    still_learning: stillLearning,
+    exploring,
     reasons,
     sentiment_simulated: sent.simulated,
   };

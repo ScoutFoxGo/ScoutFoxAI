@@ -19,6 +19,7 @@ function subjectOf(body = {}) {
     segment: body.segment ?? s.segment,
     weather: body.weather ?? s.weather,
     context: body.context ?? s.context,
+    explore: body.explore ?? s.explore,
   };
 }
 

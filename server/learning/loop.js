@@ -21,6 +21,7 @@ const norm = (s) => String(s).toLowerCase().trim().replace(/\s+/g, "-");
 
 const DAY = 86400000;
 const HALF_LIFE_DAYS = 45; // an outcome's weight halves every ~6 weeks
+const PRIOR_STRENGTH = 4;  // pseudo-samples the global mean lends a specialized estimate
 
 // --- signal extraction from one event ---
 // Value in [0,1]: prefer the explicit rating (1-5 -> 0..1), else binary accept.
@@ -136,14 +137,27 @@ export function priorBreakdown(tag, segment, context) {
     if (qtoks.length && !qtoks.some((q) => (ev.ctx || []).includes(q))) continue;
     swa += w * v; sws += w;
   }
-  const global = smooth(gwa, gws) ?? 0.5;
+  // Global posterior: Beta(1,1) uniform prior + weighted evidence (wa successes,
+  // ws-wa failures). Mean is the Laplace-smoothed rate.
+  const gAlpha = gwa + 1, gBeta = (gws - gwa) + 1;
+  const global = gAlpha / (gAlpha + gBeta);
   const globalFlat = un ? (ua + 1) / (un + 2) : 0.5; // unweighted, to isolate recency
-  const specific = smooth(swa, sws);
-  let value = global, conf = 0;
-  if ((seg || qtoks.length) && specific != null) {
-    conf = Math.min(1, sws / 10);
-    value = specific * conf + global * (1 - conf);
+
+  // Specialized posterior (segment/context): use the GLOBAL mean as the prior,
+  // with strength PRIOR_STRENGTH pseudo-samples, then add the specific evidence.
+  // This is a principled hierarchical Beta — thin specific evidence stays near the
+  // global signal, and it earns its independence as samples accumulate. It
+  // replaces the old ad-hoc confidence blend AND gives a real posterior we can
+  // quantify uncertainty on / Thompson-sample from.
+  let alpha = gAlpha, beta = gBeta, evidence = gws;
+  if ((seg || qtoks.length) && sws > 0) {
+    alpha = global * PRIOR_STRENGTH + swa;
+    beta = (1 - global) * PRIOR_STRENGTH + (sws - swa);
+    evidence = sws;
   }
+  const stats = betaStats(alpha, beta);
+  const specific = smooth(swa, sws); // for driver display only
+
   const drivers = [];
   if (specific != null && (seg || qtoks.length)) {
     const d = specific - global;
@@ -155,14 +169,63 @@ export function priorBreakdown(tag, segment, context) {
   const rd = global - globalFlat;
   if (Math.abs(rd) >= 0.05) drivers.push({ factor: "recent trend", effect: Number(rd.toFixed(2)) });
   drivers.sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect));
+
+  const width = stats.interval[1] - stats.interval[0];
   return {
     tag: t,
-    value: Number(value.toFixed(2)),
+    value: Number(stats.mean.toFixed(2)),
     global: Number(global.toFixed(2)),
     specific: specific == null ? null : Number(specific.toFixed(2)),
-    confidence: Number(conf.toFixed(2)),
+    alpha, beta,
+    samples: Number(evidence.toFixed(1)),
+    interval: stats.interval, // 90% credible interval
+    confidence: Number((1 - width).toFixed(2)), // tighter posterior = more confident
+    still_learning: width > 0.3 || evidence < 3,
     drivers,
   };
+}
+
+// Mean + 90% credible interval of a Beta(alpha,beta) posterior (normal approx —
+// cheap and good enough for ranking display).
+function betaStats(alpha, beta) {
+  const mean = alpha / (alpha + beta);
+  const sd = Math.sqrt((alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1)));
+  const z = 1.645; // ~90%
+  return { mean, sd, interval: [Number(Math.max(0, mean - z * sd).toFixed(2)), Number(Math.min(1, mean + z * sd).toFixed(2))] };
+}
+
+// --- active learning: Thompson sampling ---
+// Draw a value from a tag's posterior instead of taking its mean. Used in
+// EXPLORE mode so uncertain-but-promising options get a chance to be shown and
+// thereby learned about — escaping the feedback-loop trap where Scout only ever
+// learns about what it already recommends.
+export function samplePrior(tag, segment, context) {
+  const b = priorBreakdown(tag, segment, context);
+  return betaSample(b.alpha, b.beta);
+}
+function gaussian() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function gammaSample(k) {
+  // Marsaglia–Tsang; recurse for shape < 1.
+  if (k < 1) return gammaSample(1 + k) * Math.pow(Math.random(), 1 / k);
+  const d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);
+  for (;;) {
+    let x, vv;
+    do { x = gaussian(); vv = 1 + c * x; } while (vv <= 0);
+    vv = vv * vv * vv;
+    const u = Math.random();
+    if (u < 1 - 0.0331 * x * x * x * x) return d * vv;
+    if (Math.log(u) < 0.5 * x * x + d * (1 - vv + Math.log(vv))) return d * vv;
+  }
+}
+function betaSample(a, b) {
+  const x = gammaSample(Math.max(1e-6, a));
+  const y = gammaSample(Math.max(1e-6, b));
+  return x / (x + y);
 }
 
 // COLD-START TRANSFER: the tags a segment tends to accept / reject, so a brand-new
@@ -251,7 +314,16 @@ function bump(map, tag, w, v) {
 }
 function topTags(map, n = 5, filter) {
   return Object.entries(map)
-    .map(([tag, s]) => ({ tag, acceptance: Number(smooth(s.wa, s.ws).toFixed(2)) }))
+    .map(([tag, s]) => {
+      const { interval } = betaStats(s.wa + 1, s.ws - s.wa + 1);
+      return {
+        tag,
+        acceptance: Number(smooth(s.wa, s.ws).toFixed(2)),
+        samples: Number(s.ws.toFixed(1)),
+        interval,
+        still_learning: interval[1] - interval[0] > 0.3 || s.ws < 3,
+      };
+    })
     .filter((r) => (filter ? filter(r) : true))
     .sort((a, b) => b.acceptance - a.acceptance)
     .slice(0, n);

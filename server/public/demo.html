@@ -142,7 +142,7 @@ async function loadLearned(){
   try {
     const s = await jget("/learning/state");
     const k = s.instant||{};
-    const best = (k.works_best||[]).map(r=>`${r.tag} ${Math.round(r.acceptance*100)}%`).join(" · ") || "nothing yet";
+    const best = (k.works_best||[]).map(r=>`${r.tag} ${Math.round(r.acceptance*100)}%${r.still_learning?" <span class='muted'>(still learning)</span>":""}`).join(" · ") || "nothing yet";
     const breakdown = obj => Object.entries(obj||{}).map(([key,rows])=>`<div class="reason">· ${key}: ${rows.map(r=>`${r.tag} ${Math.round(r.acceptance*100)}%`).join(", ")}</div>`).join("");
     const segs = breakdown(k.by_segment), ctxs = breakdown(k.by_context);
     const durable = (s.durable||[]).map(d=>`<div class="reason">• ${d.insight}</div>`).join("") || "<div class='reason'>no distilled insights yet — teach Scout a few picks</div>";
