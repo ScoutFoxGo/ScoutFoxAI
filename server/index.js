@@ -31,7 +31,12 @@ import destinationRouter from "./destination/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(cors());
+
+// CORS: in production set ALLOWED_ORIGINS to the site(s) that call this API
+// (e.g. "https://scoutfoxgo.com,https://www.scoutfoxgo.com"). Unset = allow all
+// (dev). This is how the main website connects to the AI backend cross-domain.
+const ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+app.use(cors(ORIGINS.length ? { origin: ORIGINS } : {}));
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (_req, res) => {
