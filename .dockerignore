@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+web/dist
+**/*.log
+.git
+server/comparisons.json
+server/lms/lms_*.json
+server/admin_*.json
+server/match_*.json
+.env

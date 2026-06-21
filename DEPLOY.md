@@ -17,7 +17,39 @@
   `scoutfoxai.com` site). `.ai` or `.com` is your choice; the code is
   domain‑agnostic.
 
-## 1. Host the backend (Render)
+## Moving off Base44 (sequencing matters)
+
+Base44 currently hosts the **whole consumer app** (Dashboard, FamilyCompass,
+PlaceExplorer, etc.). This repo is the **AI backend ("the brain")**, not that
+frontend. So the safe migration order is:
+
+1. Web devs build the new frontend on **`scoutfoxgo.com`** (the replacement UI).
+2. This repo runs as the **AI API** (`api.scoutfox.ai`); the new site calls it.
+3. Confirm the new site + API cover what the Base44 app did (and that any App
+   Store build points at the new site).
+4. **Then unlink Base44.** Don't unlink first — that would take the live app/App
+   Store build down before the replacement is ready.
+
+## 1a. Host on AWS (your preferred stack)
+
+A `Dockerfile` is included, so it runs on any AWS container service. For your
+stated scale (10–50 concurrent, 1–3 QPS, $50–$150/mo to start) **start lean**:
+
+- **AWS App Runner** (recommended to launch) — point it at this repo or an ECR
+  image; it builds the Dockerfile, gives HTTPS + autoscaling, ~lowest ops. Set
+  env vars from **Secrets Manager** (`ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS`,
+  `SCOUTFOXGO_DATA_URL`, `LIVE_ONLY=true`, booking keys).
+- **Lightsail Containers** — even cheaper/simpler if you want a fixed low price.
+- **ECS/EKS + RDS/DynamoDB + CloudFront** (your doc's target) — the scale‑out
+  shape; move here when traffic grows past App Runner. The container is the same.
+
+Notes tying to your security spec: keep API keys in **Secrets Manager** (the app
+reads them as env vars — never in code), put **CloudFront** in front for TLS 1.2+
+and caching, and add your **"anonymize user data before sending to OpenAI"** step
+inside the `server/llm.js` `invokeLLM` seam — that's the single choke point every
+model call passes through, so it's the right place to scrub PII.
+
+## 1b. Host on Render (fastest to a live URL)
 
 `render.yaml` is ready. Render → **New → Blueprint → this repo/branch**, then in
 the dashboard set environment variables (see `server/.env.example`):
