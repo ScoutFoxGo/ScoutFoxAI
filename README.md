@@ -1,0 +1,2 @@
+# ScoutFoxAI
+AI behind ScoutFoxGo
