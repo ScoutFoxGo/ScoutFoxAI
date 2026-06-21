@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #faf9f7;
+  color: #1c1917;
+}
+
+/* Lightweight markdown-ish rendering for model answers. */
+.answer p { margin: 0 0 0.75rem; line-height: 1.6; }
+.answer ol, .answer ul { margin: 0 0 0.75rem 1.25rem; line-height: 1.6; }
+.answer strong { font-weight: 600; }
+.answer em { color: #57534e; }
