@@ -73,6 +73,30 @@ Without an API key you'll see `● mock mode` in the header and simulated answer
 with one set you'll see `● live Claude` and real Claude responses for the Claude
 models.
 
+## Closed self-learning LMS (`server/lms/`)
+
+A self-contained learning system that grows its own knowledge from ScoutFox
+usage — your content, your database, no third-party content platforms. The AI
+generation runs through the same swappable `invokeLLM` seam.
+
+- **Corpus** (`corpus.js`) — lessons live in your store; retrieval is in-house
+  keyword/TF-IDF scoring (no external embedding service).
+- **Self-learning loop** (`distill.js`) — turns saved ScoutFox comparisons
+  (answers + synthesis) into vetted lessons + quizzes. `POST /api/lms/learn-all`
+  absorbs everything new. This is the "gets smarter every run" bridge to
+  ScoutFoxGo.
+- **Learner model** (`learner.js`) — per-user mastery by topic, adaptive
+  "what to learn next." `userId` is the join key to ScoutFoxGo identity.
+- **Tutor** (`tutor.js`) — answers **only** from your corpus. On a miss it says
+  so — unless `allowResearch: true`, in which case it does one external research
+  pass (Claude web search) and **distills the result back into the corpus**, so
+  the next identical question is answered in-house. Research is opt-in; closed
+  is the default.
+
+LMS endpoints: `GET /api/lms/lessons`, `POST /api/lms/distill`,
+`POST /api/lms/learn-all`, `POST /api/lms/tutor`, `POST /api/lms/quiz/attempt`,
+`GET /api/lms/learner/:id`, `GET /api/lms/learner/:id/next`.
+
 ## Adding a real provider (OpenAI / Gemini / Grok / Perplexity)
 
 Open `server/llm.js`, find the provider's `case` in `invokeLLM()`, and return

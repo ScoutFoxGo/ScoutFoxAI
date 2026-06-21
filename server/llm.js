@@ -63,6 +63,42 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
   }
 }
 
+/**
+ * Research fallback: answer a question using live web search, for when the
+ * closed corpus doesn't know. This is the ONE place the system reaches outside
+ * — callers gate it behind an explicit flag so "closed" stays the default.
+ * Returns { text, mocked }.
+ */
+export async function researchLLM(question, { maxTokens = 1500 } = {}) {
+  if (!anthropic) {
+    return {
+      text:
+        `*(Research is simulated — set ANTHROPIC_API_KEY to enable live web search.)*\n\n` +
+        `A researched summary of "${question}" would go here, then be saved into ` +
+        `your corpus so the next answer is in-house.`,
+      mocked: true,
+    };
+  }
+  const res = await anthropic.messages.create({
+    model: "claude-opus-4-8",
+    max_tokens: maxTokens,
+    tools: [{ type: "web_search_20260209", name: "web_search" }],
+    messages: [
+      {
+        role: "user",
+        content:
+          `Research this and write a tight, factual summary with the key points ` +
+          `someone should learn. Question: ${question}`,
+      },
+    ],
+  });
+  const text = res.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return { text, mocked: false };
+}
+
 async function callAnthropic(apiModel, prompt, system, maxTokens) {
   // Non-streaming keeps the proxy simple; max_tokens stays well under the
   // SDK's ~16K non-streaming timeout guard. Bump this + switch to streaming

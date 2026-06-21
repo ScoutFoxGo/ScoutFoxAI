@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { invokeLLM, MODEL_CATALOG } from "./llm.js";
 import { saveComparison, getComparison, recentComparisons } from "./store.js";
+import lmsRouter from "./lms/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -67,6 +68,10 @@ app.get("/api/comparisons/:id", (req, res) => {
 app.get("/api/comparisons", (_req, res) => {
   res.json({ comparisons: recentComparisons() });
 });
+
+// Closed, self-learning LMS (corpus + self-learning loop + learner model +
+// closed-first tutor with opt-in research). Bridges to ScoutFoxGo via userId.
+app.use("/api/lms", lmsRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
