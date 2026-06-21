@@ -152,6 +152,9 @@ app.use("/api/harmony", harmonyRouter);
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
 // In dev, the Vite server handles the frontend and proxies /api here instead.
+// Standalone demo page (no build step) — visit /demo.html.
+app.use(express.static(join(__dirname, "public")));
+
 const WEB_DIST = join(__dirname, "..", "web", "dist");
 if (existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST));

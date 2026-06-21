@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ScoutFoxGo — Demo</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:#faf9f7; color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:16px 20px; display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:18px; margin:0; }
+  header p { margin:0; color:var(--muted); font-size:12px; }
+  main { max-width:860px; margin:0 auto; padding:20px; display:grid; gap:18px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .card h2 { margin:0 0 4px; font-size:15px; }
+  .card .hint { color:var(--muted); font-size:12px; margin:0 0 12px; }
+  input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row > * { flex:1; min-width:120px; }
+  button { background:var(--fox); color:#fff; border:0; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { background:var(--fox-dark); }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .out { margin-top:12px; font-size:14px; }
+  .pick { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px; }
+  .pick .top { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .pick b { font-weight:600; }
+  .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .Best { background:#dcfce7; color:#166534; } .Good { background:#dbeafe; color:#1e40af; }
+  .Risky { background:#fef3c7; color:#92400e; } .Weak { background:#fee2e2; color:#991b1b; }
+  .reason { color:var(--muted); font-size:12px; margin-top:2px; }
+  .muted { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🦊</span>
+  <div><h1>ScoutFoxGo</h1><p>Plan Less. Explore More. — live demo of the decision engine</p></div>
+  <span id="status" class="muted" style="margin-left:auto"></span>
+</header>
+<main>
+
+  <!-- Recommendation -->
+  <section class="card">
+    <h2>Ask Scout</h2>
+    <p class="hint">Describe what you want — Scout returns one confident recommendation, not a list.</p>
+    <input id="q" value="a relaxed weekend somewhere warm, easy for a toddler" />
+    <div class="row" style="margin-top:8px">
+      <select id="fam"></select>
+      <select id="weather"><option value="">weather?</option><option>sunny</option><option>rainy</option><option>hot</option></select>
+      <button onclick="recommend()">Recommend</button>
+    </div>
+    <div id="recOut" class="out"></div>
+  </section>
+
+  <!-- Modes -->
+  <section class="card">
+    <h2>Scout Modes</h2>
+    <p class="hint">Same place, optimized for who's going.</p>
+    <div class="row">
+      <input id="modeDest" value="Miami" />
+      <button class="ghost" onclick="mode('mom_route')">Mom Route™</button>
+      <button class="ghost" onclick="mode('dad_mode')">Dad Mode™</button>
+      <button class="ghost" onclick="mode('grandparent_mode')">Grandparent Mode™</button>
+    </div>
+    <div id="modeOut" class="out"></div>
+  </section>
+
+  <!-- Destination compare -->
+  <section class="card">
+    <h2>Which destination fits us better?</h2>
+    <div class="row">
+      <input id="da" value="Orlando" />
+      <input id="db" value="Miami" />
+      <button onclick="compare()">Compare</button>
+    </div>
+    <div id="cmpOut" class="out"></div>
+  </section>
+
+</main>
+<script>
+const API = location.origin + "/api";
+const bandClass = b => (b||"").split(" ")[0];
+
+async function jpost(path, body){ const r = await fetch(API+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); return r.json(); }
+async function jget(path){ const r = await fetch(API+path); return r.json(); }
+
+function optCard(o){ if(!o) return ""; const band=o.confidence||o.band||"";
+  return `<div class="pick"><div class="top"><b>${o.title}</b><span class="badge ${bandClass(band)}">${o.estimated_cost||""} ${band}</span></div>
+  <div class="reason">${o.why_fits||""}</div><div class="reason">best for: ${o.best_for||"—"} · prep: ${o.preparation||"—"}</div></div>`; }
+
+async function recommend(){
+  document.getElementById("recOut").innerHTML = "<span class='muted'>thinking…</span>";
+  const r = await jpost("/decision/recommend",{ request:q.value, familyProfileId:fam.value||undefined, weather:weather.value||undefined });
+  document.getElementById("recOut").innerHTML =
+    `<div class="muted">for ${r.destination} · confidence ${r.confidence}</div>
+     <div style="margin-top:6px"><b>✅ Best match</b>${optCard(r.best_match)}</div>
+     <div style="margin-top:6px"><b>💸 Budget</b>${optCard(r.budget_option)}</div>
+     <div style="margin-top:6px"><b>⭐ Premium</b>${optCard(r.premium_option)}</div>`;
+}
+async function mode(m){
+  document.getElementById("modeOut").innerHTML = "<span class='muted'>routing…</span>";
+  const r = await jpost(`/modes/${m}/route`,{ destination:modeDest.value });
+  document.getElementById("modeOut").innerHTML =
+    `<div class="muted">${r.mode} — ${r.optimized_for}</div>` +
+    r.route.map(i=>`<div class="pick"><div class="top"><b>${i.slot}: ${i.title}</b><span class="muted">${i.price}</span></div><div class="reason">${i.why}</div></div>`).join("");
+}
+async function compare(){
+  document.getElementById("cmpOut").innerHTML = "<span class='muted'>comparing…</span>";
+  const r = await jpost("/destination/compare",{ a:da.value, b:db.value, familyProfileId:fam.value||undefined });
+  document.getElementById("cmpOut").innerHTML = `<div class="pick">${r.recommendation}</div>`;
+}
+
+// populate families + status
+(async()=>{
+  try{
+    const h = await jget("/health"); document.getElementById("status").textContent = h.anthropic ? "● live Claude" : "● demo mode";
+    const f = await jget("/scout/family");
+    fam.innerHTML = `<option value="">(no family)</option>` + (f.family_profiles||[]).map(p=>`<option value="${p.id}">${p.parent_name} — ${p.kids_info}</option>`).join("");
+  }catch(e){ document.getElementById("status").textContent = "API not reachable"; }
+})();
+</script>
+</body>
+</html>
