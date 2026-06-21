@@ -125,6 +125,15 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## Predictive intelligence (`server/crowdsense/`, `server/companion/`)
+
+- **Scout CrowdSense™** — `POST /api/crowdsense/predict` and `/best-day`: predicts
+  crowd level, wait estimate, and the best day/time to go (day‑of‑week, season,
+  holidays, venue type). In‑house heuristics.
+- **Scout Companion™** — `POST /api/companion/alerts { tripId, weather? }`:
+  proactive trip alerts — rain → indoor swap, heat → cooling tips, nap windows
+  for little kids, packing reminders, and crowd timing.
+
 ## Finder engines (`server/finder/`)
 
 Place finders that stay **intelligent** — every result is ranked by the Scout

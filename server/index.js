@@ -33,6 +33,8 @@ import harmonyRouter from "./harmony/routes.js";
 import flightsRouter from "./flights/routes.js";
 import inventoryRouter, { walletRouter } from "./inventory/routes.js";
 import finderRouter from "./finder/routes.js";
+import crowdsenseRouter from "./crowdsense/routes.js";
+import companionRouter from "./companion/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,6 +75,8 @@ app.get("/api", (_req, res) => {
       inventory: ["GET /api/inventory/types", "POST /api/inventory/search"],
       wallet: ["GET /api/wallet/programs", "GET /api/wallet/:userId", "POST /api/wallet/:userId", "POST /api/wallet/:userId/apply"],
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
+      crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
+      companion: ["POST /api/companion/alerts"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
@@ -166,6 +170,10 @@ app.use("/api/wallet", walletRouter);
 // Finder engines (parks/playgrounds/beaches/restaurants/cooling-off) — every
 // result ranked by the Scout Match Score.
 app.use("/api/finder", finderRouter);
+
+// Predictive intelligence: CrowdSense (crowd/wait/best-day) + Companion (alerts).
+app.use("/api/crowdsense", crowdsenseRouter);
+app.use("/api/companion", companionRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
