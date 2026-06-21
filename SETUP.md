@@ -40,9 +40,11 @@ Open the product:
 
 ## 3. Add your keys (this is the only file you touch)
 
+One command scaffolds the file (cross-platform; never overwrites existing keys):
+
 ```bash
-# from the repo root
-cp server/.env.example server/.env       # Windows: copy server\.env.example server\.env
+cd server
+npm run setup        # creates server/.env from .env.example
 ```
 
 Open **`server/.env`** and paste your real values after each `=`. Leave any line

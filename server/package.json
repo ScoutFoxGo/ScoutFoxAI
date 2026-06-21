@@ -5,6 +5,7 @@
   "type": "module",
   "description": "ScoutFoxAI backend — the multi-model LLM proxy + lightweight data store that replaces Base44's hosted InvokeLLM/entities.",
   "scripts": {
+    "setup": "node setup.js",
     "start": "node index.js",
     "dev": "node --watch index.js",
     "seed:knowledge": "node lms/seed-knowledge.js"
