@@ -67,7 +67,7 @@ app.get("/api", (_req, res) => {
       destination: ["GET /api/destination/:name/intel", "POST /api/destination/compare"],
       modes: ["GET /api/modes", "POST /api/modes/:mode/route"],
       harmony: ["POST /api/harmony/decide"],
-      flights: ["POST /api/flights/search"],
+      flights: ["POST /api/flights/search", "GET /api/flights/offer/:id", "POST /api/flights/booking/payment-intent", "POST /api/flights/booking/confirm"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
