@@ -66,6 +66,20 @@
     <div id="modeOut" class="out"></div>
   </section>
 
+  <!-- Scout Harmony -->
+  <section class="card">
+    <h2>Scout Harmony™ — decide as a group</h2>
+    <p class="hint">Everyone's preferences, one decision. Comma‑separate each person's likes.</p>
+    <div class="row"><input id="hDest" value="San Diego" placeholder="destination" /></div>
+    <div class="row" style="margin-top:8px">
+      <input id="p1" value="stroller-friendly, shaded" placeholder="Mom's likes" />
+      <input id="p2" value="accessible, relaxing" placeholder="Grandpa's likes" />
+      <input id="p3" value="thrill, active" placeholder="Teen's likes" />
+    </div>
+    <div style="margin-top:8px"><button onclick="harmony()">Find the group pick</button></div>
+    <div id="harmOut" class="out"></div>
+  </section>
+
   <!-- Destination compare -->
   <section class="card">
     <h2>Which destination fits us better?</h2>
@@ -104,6 +118,16 @@ async function mode(m){
   document.getElementById("modeOut").innerHTML =
     `<div class="muted">${r.mode} — ${r.optimized_for}</div>` +
     r.route.map(i=>`<div class="pick"><div class="top"><b>${i.slot}: ${i.title}</b><span class="muted">${i.price}</span></div><div class="reason">${i.why}</div></div>`).join("");
+}
+async function harmony(){
+  document.getElementById("harmOut").innerHTML = "<span class='muted'>balancing…</span>";
+  const mk = (name,el)=>({ name, prefs: el.value.split(",").map(s=>s.trim()).filter(Boolean) });
+  const r = await jpost("/harmony/decide",{ destination:hDest.value, participants:[mk("Mom",p1),mk("Grandpa",p2),mk("Teen",p3)] });
+  const per = o => o.per.map(x=>`${x.name} ${Math.round(x.satisfaction*100)}%`).join(" · ");
+  document.getElementById("harmOut").innerHTML =
+    `<div class="pick">${r.recommendation}</div>
+     <div class="pick"><div class="top"><b>✅ Best fit: ${r.best_fit.title}</b><span class="muted">group ${Math.round(r.best_fit.group_score*100)}%</span></div><div class="reason">${per(r.best_fit)}</div></div>
+     <div class="pick"><div class="top"><b>🤝 Compromise: ${r.compromise.title}</b><span class="muted">no one below ${Math.round(r.compromise.min_satisfaction*100)}%</span></div><div class="reason">${per(r.compromise)}</div></div>`;
 }
 async function compare(){
   document.getElementById("cmpOut").innerHTML = "<span class='muted'>comparing…</span>";
