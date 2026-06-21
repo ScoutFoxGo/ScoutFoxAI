@@ -103,7 +103,21 @@ if (existsSync(WEB_DIST)) {
 }
 
 const PORT = process.env.PORT || 8787;
+
+// Load ScoutFoxGo data (live endpoint if configured, sample seed in dev) before
+// serving, so the engine never races an empty dataset.
+const { initData } = await import("./scoutfoxgo/data.js");
+let dataSource = "unknown";
+try {
+  const r = await initData();
+  dataSource = r.source + (r.url ? ` (${r.url})` : "");
+} catch (e) {
+  console.error(`Data init failed: ${e.message}`);
+  if (process.env.LIVE_ONLY) process.exit(1); // don't serve placeholders in live mode
+}
+
 app.listen(PORT, () => {
-  const mode = process.env.ANTHROPIC_API_KEY ? "LIVE Anthropic" : "MOCK (no ANTHROPIC_API_KEY)";
-  console.log(`ScoutFoxAI server on http://localhost:${PORT}  [${mode}]`);
+  const ai = process.env.ANTHROPIC_API_KEY ? "LIVE Anthropic" : "mock LLM";
+  const mode = /^(1|true|yes|on)$/i.test(process.env.LIVE_ONLY || "") ? "LIVE_ONLY" : "dev";
+  console.log(`ScoutFoxAI server on http://localhost:${PORT}  [${mode}; ${ai}; data: ${dataSource}]`);
 });

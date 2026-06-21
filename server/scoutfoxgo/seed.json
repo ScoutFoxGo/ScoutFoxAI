@@ -62,10 +62,10 @@
     { "id": "TD010", "trip_id": "T004", "day_number": 4, "morning_activity": "Breakfast & packing", "midday_activity": "Short stroll by café", "afternoon_activity": "Souvenir stop", "evening_activity": "Airport departure", "scout_tip": "Keep snacks accessible for the flight home." }
   ],
   "destinations": [
-    { "id": "D001", "name": "Orlando", "region": "Florida", "country": "USA", "description": "Theme park capital with top-tier family fun.", "image_url": "https://example.com/orlando.jpg" },
-    { "id": "D002", "name": "San Diego", "region": "California", "country": "USA", "description": "Beach city known for zoo, parks, and sunshine.", "image_url": "https://example.com/sandiego.jpg" },
-    { "id": "D003", "name": "Miami", "region": "Florida", "country": "USA", "description": "Bright beaches, culture, food trucks, and splash play.", "image_url": "https://example.com/miami.jpg" },
-    { "id": "D004", "name": "Paris", "region": "Ile-de-France", "country": "France", "description": "Kid-friendly parks, bakeries, and iconic sights.", "image_url": "https://example.com/paris.jpg" }
+    { "id": "D001", "name": "Orlando", "region": "Florida", "country": "USA", "description": "Theme park capital with top-tier family fun.", "image_url": "" },
+    { "id": "D002", "name": "San Diego", "region": "California", "country": "USA", "description": "Beach city known for zoo, parks, and sunshine.", "image_url": "" },
+    { "id": "D003", "name": "Miami", "region": "Florida", "country": "USA", "description": "Bright beaches, culture, food trucks, and splash play.", "image_url": "" },
+    { "id": "D004", "name": "Paris", "region": "Ile-de-France", "country": "France", "description": "Kid-friendly parks, bakeries, and iconic sights.", "image_url": "" }
   ],
   "family_profiles": [
     { "id": "FP001", "parent_name": "Meghan", "kids_info": "Abel: age 3", "preferences": "Stroller-friendly, snack breaks, water refill stops" },

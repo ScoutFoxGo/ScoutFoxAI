@@ -13,6 +13,8 @@
 //   { id, kind: "flight"|"stay"|"activity", title, partner, price,
 //     location, duration_hrs, age_min, accessible, tags[] }
 
+import { requireLive } from "../config.js";
+
 // Stable pseudo-random in [0,1) from a string seed, so prices/options don't
 // jump between requests for the same destination.
 function seeded(str) {
@@ -30,6 +32,7 @@ export function duffel(intent) {
   if (process.env.DUFFEL_API_KEY) {
     // TODO: real Duffel call -> map to Option[]; return it here.
   }
+  requireLive("Duffel flights (DUFFEL_API_KEY)"); // throws in LIVE_ONLY mode
   const dest = intent.destination || "Destination";
   return ["Nonstop", "1-stop value", "Early-bird"].map((label, i) => ({
     id: `fl_${i}_${dest}`,
@@ -50,6 +53,7 @@ export function kayak(intent) {
   if (process.env.KAYAK_API_KEY) {
     // TODO: real Kayak search -> Option[].
   }
+  requireLive("Kayak stays (KAYAK_API_KEY)"); // throws in LIVE_ONLY mode
   const dest = intent.destination || "Destination";
   return [
     { label: "Family suite hotel", tags: ["pool", "stroller-friendly", "breakfast"], base: 210 },
@@ -74,6 +78,7 @@ export function phptravels(intent) {
   if (process.env.PHPTRAVELS_API_KEY) {
     // TODO: real PHPtravels call -> Option[].
   }
+  requireLive("PHPtravels activities (PHPTRAVELS_API_KEY)"); // throws in LIVE_ONLY mode
   const dest = intent.destination || "Destination";
   const acts = [
     { label: "Children's museum", tags: ["indoor", "educational", "stroller-friendly", "sensory-friendly"], age: 2, base: 18, hrs: 2 },

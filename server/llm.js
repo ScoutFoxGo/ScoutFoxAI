@@ -11,6 +11,7 @@
 // real adapter by filling in the matching `case` below — nothing else changes.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { requireLive } from "./config.js";
 
 // Catalog of every model the UI can select, keyed by a stable `key`.
 // `provider` decides which adapter handles the call; `apiModel` is the exact
@@ -49,7 +50,8 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
       if (anthropic) {
         return { ...(await callAnthropic(entry.apiModel, prompt, system, maxTokens)), model: entry.label };
       }
-      // No key — fall through to a labelled mock so the demo still runs.
+      requireLive(`${entry.label} (ANTHROPIC_API_KEY)`); // throws in LIVE_ONLY mode
+      // Dev only — labelled mock so the app runs offline.
       return { text: mockAnswer(entry.label, prompt), model: entry.label, mocked: true };
 
     // To make these real: construct the provider's client and return its text.
@@ -59,6 +61,7 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
     case "xai":
     case "perplexity":
     default:
+      requireLive(`${entry.label} provider`); // throws in LIVE_ONLY mode
       return { text: mockAnswer(entry.label, prompt), model: entry.label, mocked: true };
   }
 }
@@ -71,6 +74,7 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
  */
 export async function researchLLM(question, { maxTokens = 1500 } = {}) {
   if (!anthropic) {
+    requireLive("research (ANTHROPIC_API_KEY + web search)"); // throws in LIVE_ONLY
     return {
       text:
         `*(Research is simulated — set ANTHROPIC_API_KEY to enable live web search.)*\n\n` +

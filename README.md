@@ -106,6 +106,25 @@ scores** (High/Medium/Low), and the **Recommendation Model**: `POST
 Indoor/Outdoor backups, each with why-it-fits, estimated cost (flagged "verify"),
 ideal duration, who it's best for, drawbacks, and prep — and re-ranks on weather.
 
+## Live data vs dev (no placeholders in production)
+
+By default the app runs **offline** for development: a mock LLM, sample
+ScoutFoxGo data, and mock booking inventory. To run on **real data**, set
+credentials and turn on `LIVE_ONLY` — which makes the system **refuse to serve
+any placeholder** (mock LLM answers, sample data, and mock inventory all throw
+instead of returning fake results, so nothing example-like can ship).
+
+| Env var | Enables live… |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude responses (LLM, synthesis, judge, tutor, research, NL parsing) |
+| `SCOUTFOXGO_DATA_URL` | real trips / families / scrapbook from your ScoutFoxGo endpoint (master-file JSON shape) |
+| `DUFFEL_API_KEY` / `KAYAK_API_KEY` / `PHPTRAVELS_API_KEY` | live booking inventory in the Decision Layer |
+| `LIVE_ONLY=true` | hard guard — fail loudly if any of the above is missing rather than serve placeholders |
+
+Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
+partner credentials — they pull live once you implement the marked call with your
+key. Everything else uses live data the moment its credential is set.
+
 ## Closed self-learning LMS (`server/lms/`)
 
 A self-contained learning system that grows its own knowledge from ScoutFox
