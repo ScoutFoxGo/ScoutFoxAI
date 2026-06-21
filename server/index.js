@@ -25,6 +25,7 @@ import scoutRouter from "./scoutfoxgo/routes.js";
 import adminRouter from "./modules/admin.routes.js";
 import { logTrace } from "./modules/admin.js";
 import decisionRouter from "./decision/routes.js";
+import matchRouter from "./match/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -90,6 +91,10 @@ app.use("/api/admin", adminRouter);
 // The Decision Layer — the core recommendation engine (Understand -> Gather ->
 // Reason -> Compose -> Refine) over family profiles + booking integrations.
 app.use("/api/decision", decisionRouter);
+
+// Match & Confidence: Scout Match Score, Decision Confidence bands, Experience
+// Prediction, and the Behavior Learning Loop.
+app.use("/api/match", matchRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

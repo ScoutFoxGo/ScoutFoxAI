@@ -125,6 +125,25 @@ Note: the booking adapters have the real-call site stubbed (`TODO`) pending your
 partner credentials — they pull live once you implement the marked call with your
 key. Everything else uses live data the moment its credential is set.
 
+## Match & Confidence (`server/match/`)
+
+Turns "100 options" into a confident read, and learns each user over time.
+
+- **Scout Match Score** — `POST /api/match/score {target, userId?, familyProfileId?}`
+  returns a 0-100 % with a **Decision Confidence band**: Best (≥85) / Good (≥70) /
+  Risky (≥50) / Weak. `POST /api/match/rank` ranks many targets.
+- **Behavior Learning Loop** — `POST /api/match/behavior {userId, signal}` records
+  likes / dislikes / budget / accept / reject; the profile feeds the match score
+  so recommendations improve with use (e.g. liking "beach" + disliking "crowds"
+  pushed a beach activity 60%→90% and a crowded one to 26% in testing).
+- **Experience Prediction** — `POST /api/match/predict` → "Families like yours
+  rated this X%" from peers with overlapping likes; falls back to preference-fit
+  (clearly labelled) until enough peer ratings exist.
+- **Community Signals** — `GET /api/match/signals` (Reddit / Google Reviews /
+  social sentiment) behind one guarded adapter: live when keys are set, neutral
+  mock in dev, fails loudly under `LIVE_ONLY`. This is the one place Scout reaches
+  outside its own data.
+
 ## Closed self-learning LMS (`server/lms/`)
 
 A self-contained learning system that grows its own knowledge from ScoutFox
