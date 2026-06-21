@@ -24,6 +24,7 @@ import lmsRouter from "./lms/routes.js";
 import scoutRouter from "./scoutfoxgo/routes.js";
 import adminRouter from "./modules/admin.routes.js";
 import { logTrace } from "./modules/admin.js";
+import decisionRouter from "./decision/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -85,6 +86,10 @@ app.use("/api/scout", scoutRouter);
 // Administrative AI Tools (analytics, sessions, feedback, traces) for the admin
 // dashboard (Addendum 2.9).
 app.use("/api/admin", adminRouter);
+
+// The Decision Layer — the core recommendation engine (Understand -> Gather ->
+// Reason -> Compose -> Refine) over family profiles + booking integrations.
+app.use("/api/decision", decisionRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

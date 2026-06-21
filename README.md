@@ -73,6 +73,28 @@ Without an API key you'll see `● mock mode` in the header and simulated answer
 with one set you'll see `● live Claude` and real Claude responses for the Claude
 models.
 
+## The Decision Layer — core recommendation engine (`server/decision/`, `server/booking/`)
+
+The heart of the product: a natural-language request + a family profile in, **one
+bookable, day-structured, explainable plan** out (not a list). Pipeline:
+
+1. **Understand** — NL → structured intent (destination, days, budget, pace,
+   family prefs). AI parses fuzzy language; a deterministic parse runs with no key.
+2. **Gather** — `server/booking/` pulls options through one internal interface
+   with mock **Duffel** (flights) / **Kayak** (stays) / **PHPtravels** (activities)
+   adapters (drop in real keys later; the engine doesn't change).
+3. **Reason** — scores every option against the family's real constraints
+   (budget, preferences, accessibility, pace, must-haves/hard-nos).
+4. **Compose** — assembles a day-by-day plan paced by energy, each item with a
+   visible reason, plus a cost estimate and Scout Points estimate.
+5. **Refine** — conversational edits ("cheaper", "slower", "more accessible")
+   reshape the plan.
+
+Endpoints: `POST /api/decision/plan {request, familyProfileId?, destination?,
+days?, budget?, pace?}`, `POST /api/decision/refine {intent, feedback}`,
+`POST /api/decision/understand`. Reasoning/compose are deterministic (explainable,
+offline); only Understand optionally calls the model.
+
 ## Closed self-learning LMS (`server/lms/`)
 
 A self-contained learning system that grows its own knowledge from ScoutFox
