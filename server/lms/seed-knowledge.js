@@ -27,6 +27,13 @@ const DOCS = [
     tags: ["launch", "decisions"],
     version: "1.0",
   },
+  {
+    path: join(here, "knowledge", "kickstarter-master-plan.md"),
+    title: "Kickstarter Master Plan",
+    category: "Strategy",
+    tags: ["kickstarter", "strategy", "business", "roadmap"],
+    version: "1.0",
+  },
 ];
 
 let total = 0;
