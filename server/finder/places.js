@@ -5,6 +5,7 @@
 // Place: { id, name, category, tags[], price, rating, accessible }
 
 import { requireLive } from "../config.js";
+import { nationalParks } from "./nps.js";
 
 function seed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0) % 1000; }
 const rating = (s) => Number((3.8 + (seed(s) % 12) / 10).toFixed(1));
@@ -47,6 +48,11 @@ export const CATEGORIES = Object.keys(SETS);
 
 export async function searchPlaces({ category, location = "your area" }) {
   if (!SETS[category]) throw new Error(`category must be one of: ${CATEGORIES.join(", ")}`);
+  // Live National Park Service data for parks (real, when NPS_API_KEY is set).
+  if (category === "parks" && process.env.NPS_API_KEY) {
+    const live = await nationalParks({ location });
+    if (live && live.length) return live;
+  }
   if (process.env.GOOGLE_PLACES_API_KEY) {
     // TODO: real Google Places (Nearby/Text Search) -> normalized Place[].
   }

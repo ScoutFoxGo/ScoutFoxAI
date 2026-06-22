@@ -43,6 +43,7 @@ import learningRouter from "./learning/routes.js";
 import assistantRouter from "./assistant/routes.js";
 import checkoutRouter from "./booking/checkout.routes.js";
 import plansRouter from "./plans/routes.js";
+import weatherRouter from "./weather/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -87,6 +88,7 @@ app.get("/api", (_req, res) => {
       inventory: ["GET /api/inventory/types", "POST /api/inventory/search"],
       wallet: ["GET /api/wallet/programs", "GET /api/wallet/:userId", "POST /api/wallet/:userId", "POST /api/wallet/:userId/apply"],
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
+      weather: ["GET /api/weather/:place"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
       companion: ["POST /api/companion/alerts"],
       learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "GET /api/learning/state", "POST /api/learning/distill", "POST /api/learning/research", "GET /api/learning/explain", "GET /api/learning/seed", "GET /api/learning/anomalies", "POST /api/learning/forget", "POST /api/learning/reset"],
@@ -119,6 +121,8 @@ function integrationStatus() {
     activities_getyourguide: has("GETYOURGUIDE_API_KEY") ? "live" : "mock",
     cruises: has("CRUISE_API_KEY") ? "live" : "mock",
     places_google: has("GOOGLE_PLACES_API_KEY") ? "live" : "mock",
+    parks_nps: has("NPS_API_KEY") ? "live" : "mock",
+    weather_openweather: has("OPENWEATHER_API_KEY") ? "live" : "mock",
     signals_reddit: has("REDDIT_API_KEY") ? "live" : "mock",
   };
 }
@@ -249,6 +253,9 @@ app.use("/api/assistant", assistantRouter);
 // saved/shareable plans.
 app.use("/api/checkout", checkoutRouter);
 app.use("/api/plans", plansRouter);
+
+// Live weather (OpenWeather) — feeds planning + alerts when OPENWEATHER_API_KEY set.
+app.use("/api/weather", weatherRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

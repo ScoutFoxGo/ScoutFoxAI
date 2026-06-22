@@ -133,8 +133,19 @@ async function buildPlan(intent) {
   base.must_haves = [...new Set([...(base.must_haves || []), ...(intent.must_haves || [])])];
   if (intent.hard_nos?.length) base.hard_nos = [...new Set([...(base.hard_nos || []), ...intent.hard_nos])];
 
+  // Live weather (OpenWeather) when configured and the user didn't state it — feeds
+  // the Decision Layer's weather-fit so a wet/hot forecast reshapes the picks.
+  let weather = intent.weather;
+  if (!weather && process.env.OPENWEATHER_API_KEY) {
+    try {
+      const { getWeather } = await import("../weather/openweather.js");
+      const w = await getWeather(base.destination);
+      if (w) { weather = w.token; intent.weather = w.token; }
+    } catch { /* keep unset */ }
+  }
+
   const options = gatherOptions(base);
-  const scored = reason(base, options, intent.weather);
+  const scored = reason(base, options, weather);
   const plan = compose(base, scored);
   plan.confidence = scored.activities[0]?._conf || "Low";
   plan.recommendation = recommend(base, scored);
