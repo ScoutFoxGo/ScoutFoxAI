@@ -52,14 +52,18 @@ deploy. It's *designed* to also plug into `scoutfoxgo.com` later (via `userId` /
 language and the travel keys in `API_KEYS.md` for live inventory/booking; until then
 it runs end‑to‑end on mock data.
 
-**Scout's own brain — runs on both Claude and OpenAI.** The brain isn't tied to one
-vendor. `think()` in `server/llm.js` picks an available provider and, if a call
-fails (outage, rate limit, bad key), **automatically falls back to the other** — so
-Scout keeps thinking as long as *any* provider is configured, and runs fully offline
-(labelled mock) when none is. Set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`;
-`SCOUT_BRAIN` picks the order (`auto` = Claude first, OpenAI fallback). The whole
-brain — assistant voice, NL trip parsing, insight distillation — flows through it.
-Check it live at `GET /api/brain`.
+**Scout's own brain — self-hostable, vendor-independent.** The brain isn't tied to
+any provider. `think()` in `server/llm.js` picks an available provider and, on
+failure, **automatically falls back to the next** — so Scout keeps thinking as long
+as *any* provider is configured, and runs fully offline (labelled mock) when none
+is. It runs on **a self-hosted open model** (`LOCAL_LLM_URL` — any OpenAI-compatible
+server: Ollama, llama.cpp, vLLM, LM Studio), with **Claude / OpenAI as optional
+backup**. `SCOUT_BRAIN` sets priority (`auto` = your own model first, then Claude,
+then OpenAI). So Scout can run with **zero dependency on Claude/OpenAI/Gemini** —
+its *decisions* are already deterministic; the model is only the language layer, and
+its *knowledge* lives in your own corpus (RAG), not the model's training. The whole
+brain — assistant voice, NL trip parsing, distillation, tutoring — flows through
+`think()`. Check it at `GET /api/brain`.
 
 Everything below documents the engines Scout orchestrates.
 

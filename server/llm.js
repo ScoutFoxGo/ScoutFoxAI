@@ -76,14 +76,21 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
 // `think()` is what the Scout brain (assistant, decision engine, distillation)
 // calls instead of pinning a single vendor. It picks an available provider, and if
 // that call fails (outage, rate limit, bad key) it automatically falls back to the
-// other — so Scout keeps thinking as long as ANY provider is configured, and runs
-// fully offline (labelled mock) when none is. Order is controlled by SCOUT_BRAIN
-// (claude | openai | auto). Default auto = Claude primary, OpenAI fallback.
+// next — so Scout keeps thinking as long as ANY provider is configured, and runs
+// fully offline (labelled mock) when none is.
+//
+// INDEPENDENCE: a self-hosted "local" provider (Ollama / llama.cpp / vLLM / LM
+// Studio — anything exposing an OpenAI-compatible endpoint at LOCAL_LLM_URL) lets
+// Scout run with NO Claude/OpenAI/Gemini at all. Order is set by SCOUT_BRAIN
+// (local | claude | openai | auto). Default auto = your own model first, then
+// Claude, then OpenAI as backup.
 
 const OPENAI_BRAIN_MODEL = () => process.env.OPENAI_MODEL || "gpt-4o-mini";
+const LOCAL_BRAIN_MODEL = () => process.env.LOCAL_LLM_MODEL || "llama3.1";
 
 export function availableBrains() {
   const list = [];
+  if (process.env.LOCAL_LLM_URL) list.push("local");
   if (process.env.ANTHROPIC_API_KEY) list.push("claude");
   if (process.env.OPENAI_API_KEY) list.push("openai");
   return list;
@@ -91,9 +98,10 @@ export function availableBrains() {
 
 function brainOrder(prefer) {
   const pref = String(prefer || process.env.SCOUT_BRAIN || "auto").toLowerCase();
-  if (pref === "openai") return ["openai", "claude"];
-  if (pref === "claude") return ["claude", "openai"];
-  return ["claude", "openai"]; // auto
+  if (pref === "claude") return ["claude", "openai", "local"];
+  if (pref === "openai") return ["openai", "claude", "local"];
+  if (pref === "local") return ["local", "claude", "openai"];
+  return ["local", "claude", "openai"]; // auto — own model first, hosted as backup
 }
 
 export async function think({ prompt, system, maxTokens = 600, prefer } = {}) {
@@ -103,6 +111,11 @@ export async function think({ prompt, system, maxTokens = 600, prefer } = {}) {
   for (let i = 0; i < order.length; i++) {
     const p = order[i];
     try {
+      if (p === "local" && process.env.LOCAL_LLM_URL) {
+        const model = LOCAL_BRAIN_MODEL();
+        const r = await callLocal(model, prompt, system, maxTokens);
+        return { ...r, provider: "local", model, fallback: usedFallback };
+      }
       if (p === "claude" && anthropic) {
         const r = await callAnthropic("claude-opus-4-8", prompt, system, maxTokens);
         return { ...r, provider: "claude", model: "Claude Opus 4.8", fallback: usedFallback };
@@ -115,10 +128,10 @@ export async function think({ prompt, system, maxTokens = 600, prefer } = {}) {
       continue; // provider not configured — try the next
     } catch (e) {
       lastErr = e;
-      usedFallback = true; // primary failed; the next attempt is a fallback
+      usedFallback = true; // this provider failed; the next attempt is a fallback
     }
   }
-  requireLive("Scout brain (ANTHROPIC_API_KEY or OPENAI_API_KEY)"); // throws in LIVE_ONLY
+  requireLive("Scout brain (LOCAL_LLM_URL / ANTHROPIC_API_KEY / OPENAI_API_KEY)"); // throws in LIVE_ONLY
   return { text: mockAnswer("Scout", prompt), model: "Scout (mock)", provider: "mock", mocked: true, error: lastErr?.message };
 }
 
@@ -178,16 +191,31 @@ async function callAnthropic(apiModel, prompt, system, maxTokens) {
 
 // OpenAI Chat Completions via fetch (no extra SDK). Real when OPENAI_API_KEY set.
 async function callOpenAI(apiModel, prompt, system, maxTokens) {
+  return chatCompletion({ baseUrl: "https://api.openai.com/v1", apiKey: process.env.OPENAI_API_KEY, model: apiModel, prompt, system, maxTokens, label: "OpenAI" });
+}
+
+// Self-hosted / local model via an OpenAI-compatible endpoint (Ollama, llama.cpp
+// server, vLLM, LM Studio, etc.). LOCAL_LLM_URL is the base, e.g.
+// "http://localhost:11434/v1" for Ollama. No key needed (optional LOCAL_LLM_KEY).
+async function callLocal(model, prompt, system, maxTokens) {
+  const baseUrl = String(process.env.LOCAL_LLM_URL).replace(/\/$/, "");
+  return chatCompletion({ baseUrl, apiKey: process.env.LOCAL_LLM_KEY || null, model, prompt, system, maxTokens, label: "Local LLM" });
+}
+
+// Shared OpenAI-compatible chat call used by both OpenAI and the local provider.
+async function chatCompletion({ baseUrl, apiKey, model, prompt, system, maxTokens, label }) {
   const messages = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
-  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+  const headers = { "Content-Type": "application/json" };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const r = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: apiModel, messages, max_tokens: maxTokens }),
+    headers,
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`OpenAI ${r.status}: ${j.error?.message || "error"}`);
+  if (!r.ok) throw new Error(`${label} ${r.status}: ${j.error?.message || "error"}`);
   return { text: j.choices?.[0]?.message?.content || "", mocked: false };
 }
 

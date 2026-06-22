@@ -103,19 +103,23 @@ app.get("/api", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, anthropic: Boolean(process.env.ANTHROPIC_API_KEY), openai: Boolean(process.env.OPENAI_API_KEY), brains: availableBrains() });
+  res.json({ ok: true, local: Boolean(process.env.LOCAL_LLM_URL), anthropic: Boolean(process.env.ANTHROPIC_API_KEY), openai: Boolean(process.env.OPENAI_API_KEY), brains: availableBrains() });
 });
 
 // Scout's own brain: which LLM providers it can run on + the active order.
 app.get("/api/brain", (_req, res) => {
   const brains = availableBrains();
   const pref = String(process.env.SCOUT_BRAIN || "auto").toLowerCase();
+  const order = pref === "claude" ? ["claude", "openai", "local"] : pref === "openai" ? ["openai", "claude", "local"] : ["local", "claude", "openai"];
+  const independent = brains.includes("local");
   res.json({
     runs_on: brains.length ? brains : ["mock (no provider configured)"],
     preference: pref,
-    order: pref === "openai" ? ["openai", "claude"] : ["claude", "openai"],
-    fallback: brains.length > 1 ? "automatic — if one provider fails, Scout falls back to the other" : brains.length === 1 ? `single provider (${brains[0]}); add the other for failover` : "none — running on offline mock",
-    openai_model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    order: order.filter((p) => brains.includes(p)).concat(order.filter((p) => !brains.includes(p)).map((p) => `${p} (not configured)`)),
+    independent_of_hosted_ai: independent,
+    self_hosted: independent ? { url: process.env.LOCAL_LLM_URL, model: process.env.LOCAL_LLM_MODEL || "llama3.1" } : null,
+    fallback: brains.length > 1 ? "automatic — if one provider fails, Scout falls back to the next" : brains.length === 1 ? `single provider (${brains[0]}); add another for failover` : "none — running on offline mock",
+    note: independent ? "Running on your own model; hosted providers are optional backup only." : "Set LOCAL_LLM_URL (e.g. Ollama) to run with no Claude/OpenAI dependency.",
   });
 });
 
@@ -124,9 +128,11 @@ app.get("/api/brain", (_req, res) => {
 function integrationStatus() {
   const has = (k) => Boolean(process.env[k]);
   const stripe = !process.env.STRIPE_SECRET_KEY ? "mock" : process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE" : "test";
-  const brains = [has("ANTHROPIC_API_KEY") && "claude", has("OPENAI_API_KEY") && "openai"].filter(Boolean);
+  const brains = [has("LOCAL_LLM_URL") && "local", has("ANTHROPIC_API_KEY") && "claude", has("OPENAI_API_KEY") && "openai"].filter(Boolean);
   return {
     brain: brains.length ? `live (${brains.join(" + ")})` : "mock",
+    brain_independent: brains.includes("local"),
+    language_local: has("LOCAL_LLM_URL") ? "live" : "off",
     language_anthropic: has("ANTHROPIC_API_KEY") ? "live" : "mock",
     language_openai: has("OPENAI_API_KEY") ? "live" : "mock",
     scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL") ? "live" : "sample-seed",
