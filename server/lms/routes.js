@@ -3,8 +3,10 @@ import { Router } from "express";
 import { listLessons, getLesson, listTopics } from "./corpus.js";
 import { distillComparison, learnFromRecent } from "./distill.js";
 import { tutor } from "./tutor.js";
-import { recordAttempt, recommendNext, progress } from "./learner.js";
+import { recordAttempt, recommendNext, progress, dueReviews } from "./learner.js";
 import { ingestDocument, knowledgeBase } from "./ingest.js";
+import { listCourses, courseOutline, createCourse } from "./courses.js";
+import { enroll, nextStep, submit, courseProgress } from "./core.js";
 
 const router = Router();
 
@@ -66,5 +68,34 @@ router.post("/quiz/attempt", (req, res) => {
 });
 router.get("/learner/:userId", (req, res) => res.json(progress(req.params.userId)));
 router.get("/learner/:userId/next", (req, res) => res.json(recommendNext(req.params.userId)));
+router.get("/learner/:userId/due", (req, res) => res.json({ due: dueReviews(req.params.userId) }));
+
+// --- LMS Core: courses + adaptive path + assessment + certificates ---
+router.get("/courses", (_req, res) => res.json({ courses: listCourses() }));
+router.post("/courses", (req, res) => {
+  try { res.json(createCourse(req.body || {})); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.get("/courses/:id", (req, res) => {
+  const o = courseOutline(req.params.id);
+  return o ? res.json(o) : res.status(404).json({ error: "course not found" });
+});
+router.post("/courses/:id/enroll", (req, res) => {
+  const { userId = "anon" } = req.body || {};
+  try { res.json(enroll(userId, req.params.id)); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+// Adaptive next step (lesson + generated quiz, review, or completion).
+router.get("/courses/:id/next", async (req, res) => {
+  const userId = req.query.userId || "anon";
+  try { res.json(await nextStep(userId, req.params.id)); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.post("/courses/:id/submit", (req, res) => {
+  const { userId = "anon", lessonId, answers } = req.body || {};
+  if (!lessonId) return res.status(400).json({ error: "lessonId required" });
+  try { res.json(submit(userId, lessonId, answers || [])); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.get("/courses/:id/progress", (req, res) => {
+  const userId = req.query.userId || "anon";
+  try { res.json(courseProgress(userId, req.params.id)); } catch (e) { res.status(400).json({ error: e.message }); }
+});
 
 export default router;

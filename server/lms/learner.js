@@ -11,7 +11,36 @@ const FILE = "lms_learners";
 
 export function getLearner(userId) {
   const db = load(FILE, {});
-  return db[userId] || { userId, topics: {}, history: [], seen_lessons: [] };
+  const l = db[userId] || { userId, topics: {}, history: [], seen_lessons: [] };
+  l.courses = l.courses || {}; // { courseId: { enrolled_at } }
+  l.reviews = l.reviews || {}; // { lessonId: { due, interval_days } } spaced repetition
+  return l;
+}
+
+// Enroll a learner in a course (idempotent).
+export function enroll(userId, courseId) {
+  const learner = getLearner(userId);
+  if (!learner.courses[courseId]) learner.courses[courseId] = { enrolled_at: new Date().toISOString() };
+  return persist(learner);
+}
+
+// Schedule the next spaced-repetition review for a lesson. Higher mastery → longer
+// interval (1 day at 0 mastery, up to ~30 days at full mastery).
+export function scheduleReview(userId, lessonId, mastery = 0) {
+  const learner = getLearner(userId);
+  const interval = Math.max(1, Math.round(1 + mastery * mastery * 29));
+  learner.reviews[lessonId] = { due: Date.now() + interval * 86400000, interval_days: interval };
+  persist(learner);
+  return learner.reviews[lessonId];
+}
+
+// Lessons whose spaced-repetition review is due now.
+export function dueReviews(userId) {
+  const learner = getLearner(userId);
+  const now = Date.now();
+  return Object.entries(learner.reviews)
+    .filter(([, r]) => r.due <= now)
+    .map(([lessonId, r]) => ({ lessonId, due_at: new Date(r.due).toISOString(), title: getLesson(lessonId)?.title || null }));
 }
 
 function persist(learner) {

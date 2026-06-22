@@ -9,11 +9,9 @@
 // question is answered in-house, with no external call. Research is the
 // exception that grows the closed knowledge base, not a standing dependency.
 
-import { invokeLLM, researchLLM } from "../llm.js";
+import { think, researchLLM } from "../llm.js";
 import { searchCorpus, addLesson } from "./corpus.js";
 import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
-
-const TUTOR_MODEL = "claude_opus_4_8";
 
 function topicFrom(question) {
   return question.split(/\s+/).filter((w) => w.length > 3).slice(0, 3).join(" ") || "General";
@@ -60,11 +58,12 @@ export async function tutor({ userId, question, allowResearch = false }) {
     `it, say what's missing rather than inventing. Cite the lesson ids you use, ` +
     `like [${lessons[0].id}].\n\nLessons:\n${context}\n\nQuestion: ${question}`;
 
-  const res = await invokeLLM({ modelKey: TUTOR_MODEL, prompt, system: SCOUT_SYSTEM_PROMPT });
+  const res = await think({ prompt, system: SCOUT_SYSTEM_PROMPT, maxTokens: 700 });
   return {
     grounded: true,
     researched,
     answer: res.text,
+    brain: res.provider,
     citations: lessons.map((l) => ({ id: l.id, title: l.title, source: l.source?.type })),
     new_lesson: newLesson ? { id: newLesson.id, title: newLesson.title } : null,
   };

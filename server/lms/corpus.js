@@ -32,6 +32,16 @@ export function getLesson(id) {
   return load(FILE, {})[id] || null;
 }
 
+// Patch an existing lesson (e.g. cache a generated quiz). Returns the updated
+// lesson or null if it doesn't exist.
+export function updateLesson(id, patch = {}) {
+  const db = load(FILE, {});
+  if (!db[id]) return null;
+  db[id] = { ...db[id], ...patch, id, updated_at: new Date().toISOString() };
+  save(FILE, db);
+  return db[id];
+}
+
 export function listLessons() {
   return Object.values(load(FILE, {})).sort((a, b) =>
     a.created_at < b.created_at ? 1 : -1

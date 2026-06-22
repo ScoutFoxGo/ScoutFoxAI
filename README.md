@@ -371,15 +371,34 @@ generation runs through the same swappable `invokeLLM` seam.
   ScoutFoxGo.
 - **Learner model** (`learner.js`) — per-user mastery by topic, adaptive
   "what to learn next." `userId` is the join key to ScoutFoxGo identity.
-- **Tutor** (`tutor.js`) — answers **only** from your corpus. On a miss it says
-  so — unless `allowResearch: true`, in which case it does one external research
-  pass (Claude web search) and **distills the result back into the corpus**, so
-  the next identical question is answered in-house. Research is opt-in; closed
-  is the default.
+- **Tutor** (`tutor.js`) — answers **only** from your corpus, on Scout's own
+  dual-provider brain. On a miss it says so — unless `allowResearch: true`, in
+  which case it does one external research pass and **distills the result back into
+  the corpus**, so the next identical question is answered in-house. Research is
+  opt-in; closed is the default.
+
+### LMS Core — courses, assessment, mastery (`core.js`, `courses.js`, `assess.js`)
+
+On top of the corpus the **Core** turns loose lessons into a real learning system:
+
+- **Curriculum** (`courses.js`) — a Course is an ordered path of lessons. Author
+  them explicitly, or the Core **auto-builds a curriculum** from the corpus topics,
+  so it works out of the box and grows as the self-learning loop adds lessons.
+- **Assessment** (`assess.js`) — generates a multiple-choice quiz for any lesson on
+  Scout's brain (Claude OR OpenAI) and **caches it on the lesson**; a deterministic
+  fallback builds questions from key points offline, so every lesson is quizzable
+  with zero credentials.
+- **Adaptive path + mastery** (`core.js` + `learner.js`) — `GET
+  /api/lms/courses/:id/next` returns the next lesson + its quiz, a targeted review
+  of the weakest topic, or completion. `submit` updates per-topic mastery (EMA) and
+  schedules a **spaced-repetition review** (1–30 days by mastery). Clear the bar on
+  every lesson → a **certificate**.
 
 LMS endpoints: `GET /api/lms/lessons`, `POST /api/lms/distill`,
-`POST /api/lms/learn-all`, `POST /api/lms/tutor`, `POST /api/lms/quiz/attempt`,
-`GET /api/lms/learner/:id`, `GET /api/lms/learner/:id/next`.
+`POST /api/lms/learn-all`, `POST /api/lms/tutor`, `GET/POST /api/lms/courses`,
+`GET /api/lms/courses/:id`, `POST /api/lms/courses/:id/enroll`,
+`GET /api/lms/courses/:id/next`, `POST /api/lms/courses/:id/submit`,
+`GET /api/lms/courses/:id/progress`, `GET /api/lms/learner/:id[/next|/due]`.
 
 ## ScoutFoxGo AI modules (`server/modules/` + `server/scoutfoxgo/`)
 
