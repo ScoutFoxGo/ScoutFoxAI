@@ -112,6 +112,8 @@ function integrationStatus() {
     language_anthropic: has("ANTHROPIC_API_KEY") ? "live" : "mock",
     scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL") ? "live" : "sample-seed",
     flights_stays_duffel: has("DUFFEL_API_KEY") ? "live" : "mock",
+    hotels_booking: has("BOOKING_API_KEY") ? "live" : "mock",
+    hotels_expedia: has("EXPEDIA_API_KEY") && has("EXPEDIA_SHARED_SECRET") ? "live" : "mock",
     payments_stripe: stripe,
     activities_viator: has("VIATOR_API_KEY") ? "live" : "mock",
     activities_getyourguide: has("GETYOURGUIDE_API_KEY") ? "live" : "mock",

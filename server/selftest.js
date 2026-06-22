@@ -73,6 +73,8 @@ export async function runSelfTest() {
     anthropic_language: anthropic,
     duffel_flights_stays: duffel,
     stripe_payments: stripe,
+    booking_hotels: passive("BOOKING_API_KEY"),
+    expedia_hotels: process.env.EXPEDIA_API_KEY && process.env.EXPEDIA_SHARED_SECRET ? res("configured", "key + secret present (not actively pinged)") : res("not-configured", "no key/secret"),
     viator_activities: passive("VIATOR_API_KEY"),
     getyourguide_activities: passive("GETYOURGUIDE_API_KEY"),
     cruises: passive("CRUISE_API_KEY"),

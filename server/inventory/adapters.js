@@ -10,6 +10,7 @@
 // Option: { id, type, title, supplier, price, currency, location, rating, tags[], bookable }
 
 import { requireLive } from "../config.js";
+import { liveHotels } from "./hotels.providers.js";
 
 function money(base, seed) {
   let h = 2166136261;
@@ -18,11 +19,16 @@ function money(base, seed) {
 }
 const mk = (o) => ({ currency: "USD", bookable: true, tags: [], ...o });
 
-export async function hotels({ destination = "your destination", check_in, check_out, guests = 2 }) {
+export async function hotels({ destination = "your destination", check_in, check_out, guests = 2, nights = 2 }) {
+  // Live affiliate hotels (Booking.com / Expedia) when their keys are set; each
+  // skips itself if unconfigured or on error, so we use whatever's available.
+  const live = await liveHotels({ destination, check_in, check_out, guests, nights });
+  if (live.length) return live;
+
   if (process.env.DUFFEL_API_KEY) {
     // TODO: Duffel Stays search (POST /stays/search) -> map to Option[].
   }
-  requireLive("Hotels (DUFFEL_API_KEY / Stays)");
+  requireLive("Hotels (BOOKING_API_KEY / EXPEDIA_API_KEY / DUFFEL_API_KEY)");
   return [
     { label: "Family suite hotel", base: 210, rating: 4.4, tags: ["pool", "stroller-friendly", "breakfast", "family"] },
     { label: "Budget inn", base: 120, rating: 3.8, tags: ["budget", "parking"] },
