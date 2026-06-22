@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout Fox Go — Project Tracker</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  header p { margin:0; color:var(--muted); font-size:12px; }
+  .bar { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted); }
+  .prog { width:160px; height:8px; background:var(--line); border-radius:99px; overflow:hidden; }
+  .prog > div { height:100%; background:var(--fox); }
+  main { max-width:1100px; margin:0 auto; padding:18px 16px; }
+  .add { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .add input, .add select { padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:14px; }
+  .add input { flex:1; min-width:200px; }
+  button { background:var(--fox); color:#fff; border:0; border-radius:9px; padding:9px 14px; font-weight:600; cursor:pointer; font-size:13px; }
+  button:hover { background:var(--fox-dark); }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+  .col { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .col h2 { font-size:13px; margin:0 0 4px; display:flex; justify-content:space-between; }
+  .col .count { color:var(--muted); font-weight:400; }
+  .item { border:1px solid var(--line); border-radius:9px; padding:9px 10px; margin-top:8px; }
+  .item.done { opacity:.6; }
+  .item .t { font-size:13.5px; line-height:1.35; }
+  .item.done .t { text-decoration:line-through; }
+  .item .row { display:flex; gap:6px; align-items:center; margin-top:7px; }
+  .item select { font-size:11px; padding:3px 6px; border:1px solid var(--line); border-radius:7px; }
+  .x { margin-left:auto; background:none; color:var(--muted); border:0; cursor:pointer; font-size:14px; padding:2px 6px; }
+  .x:hover { color:#b91c1c; }
+  .s-todo { color:#92400e; } .s-doing { color:#1e40af; } .s-done { color:#166534; }
+  .muted { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🦊</span>
+  <div><h1>Scout Fox Go — Project Tracker</h1><p>Live & owned · updates save instantly</p></div>
+  <div class="bar"><span id="pct">—</span><div class="prog"><div id="progbar" style="width:0%"></div></div><span id="status"></span></div>
+</header>
+<main>
+  <div class="add">
+    <input id="title" placeholder="Add a task… (e.g. 'Confirm Render deploy URL')" />
+    <select id="phase"></select>
+    <button onclick="add()">Add task</button>
+  </div>
+  <div id="cols" class="cols"></div>
+</main>
+<script>
+const API = location.origin + "/api/tracker";
+const esc = s => String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let board = { phases:[], items:[], statuses:["todo","doing","done"] };
+
+async function load(){
+  try { board = await (await fetch(API)).json(); render(); }
+  catch(e){ document.getElementById("status").textContent = "API not reachable"; }
+}
+function render(){
+  const ph = document.getElementById("phase");
+  ph.innerHTML = board.phases.map(p=>`<option>${esc(p)}</option>`).join("");
+  const s = board.summary || {};
+  document.getElementById("pct").textContent = (s.percent_done||0) + "% done";
+  document.getElementById("progbar").style.width = (s.percent_done||0) + "%";
+  document.getElementById("status").textContent = `${s.by_status?.done||0}/${s.total||0} complete`;
+
+  const cols = document.getElementById("cols");
+  cols.innerHTML = board.phases.map(phase=>{
+    const items = board.items.filter(i=>i.phase===phase).sort((a,b)=>a.order-b.order);
+    return `<div class="col"><h2>${esc(phase)}<span class="count">${items.length}</span></h2>${items.map(itemHtml).join("")||'<div class="muted">No tasks yet</div>'}</div>`;
+  }).join("");
+}
+function itemHtml(i){
+  const opts = board.statuses.map(s=>`<option value="${s}" ${s===i.status?"selected":""}>${s}</option>`).join("");
+  return `<div class="item ${i.status==='done'?'done':''}">
+    <div class="t">${esc(i.title)}</div>
+    <div class="row">
+      <select class="s-${i.status}" onchange="setStatus('${i.id}', this.value)">${opts}</select>
+      <button class="x" title="delete" onclick="del('${i.id}')">✕</button>
+    </div></div>`;
+}
+async function add(){
+  const title = document.getElementById("title").value.trim();
+  if(!title) return;
+  const phase = document.getElementById("phase").value;
+  document.getElementById("title").value = "";
+  await fetch(`${API}/items`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,phase})});
+  load();
+}
+async function setStatus(id, status){
+  await fetch(`${API}/items/${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
+  load();
+}
+async function del(id){
+  await fetch(`${API}/items/${id}`,{method:"DELETE"});
+  load();
+}
+document.getElementById("title").addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
+load();
+</script>
+</body>
+</html>

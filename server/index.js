@@ -44,6 +44,7 @@ import assistantRouter from "./assistant/routes.js";
 import checkoutRouter from "./booking/checkout.routes.js";
 import plansRouter from "./plans/routes.js";
 import weatherRouter from "./weather/routes.js";
+import trackerRouter from "./tracker/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -89,6 +90,7 @@ app.get("/api", (_req, res) => {
       wallet: ["GET /api/wallet/programs", "GET /api/wallet/:userId", "POST /api/wallet/:userId", "POST /api/wallet/:userId/apply"],
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
       weather: ["GET /api/weather/:place"],
+      tracker: ["GET /api/tracker", "POST /api/tracker/items", "PATCH /api/tracker/items/:id", "DELETE /api/tracker/items/:id", "POST /api/tracker/phases", "POST /api/tracker/reset"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
       companion: ["POST /api/companion/alerts"],
       learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "GET /api/learning/state", "POST /api/learning/distill", "POST /api/learning/research", "GET /api/learning/explain", "GET /api/learning/seed", "GET /api/learning/anomalies", "POST /api/learning/forget", "POST /api/learning/reset"],
@@ -279,6 +281,9 @@ app.use("/api/plans", plansRouter);
 
 // Live weather (OpenWeather) — feeds planning + alerts when OPENWEATHER_API_KEY set.
 app.use("/api/weather", weatherRouter);
+
+// Live, self-owned project tracker (UI at /tracker.html) — replaces a static mirror.
+app.use("/api/tracker", trackerRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.
