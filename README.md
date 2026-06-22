@@ -369,6 +369,11 @@ generation runs through the same swappable `invokeLLM` seam.
 
 - **Corpus** (`corpus.js`) — lessons live in your store; retrieval is in-house
   keyword/TF-IDF scoring (no external embedding service).
+- **Startup knowledge** (`knowledge/*.md` + `npm run seed:knowledge`) — Scout's
+  initial knowledge is **your own documents**, seeded into the corpus (ScoutFoxGo
+  overview, product/tech, business model, product specs). The tutor grounds answers
+  in these via RAG, so **knowledge comes from your corpus, not the model's
+  training** — switch to a self-hosted local model and Scout loses none of it.
 - **Self-learning loop** (`distill.js`) — turns saved ScoutFox comparisons
   (answers + synthesis) into vetted lessons + quizzes. `POST /api/lms/learn-all`
   absorbs everything new. This is the "gets smarter every run" bridge to

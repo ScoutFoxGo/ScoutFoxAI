@@ -14,6 +14,27 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const DOCS = [
   {
+    path: join(here, "knowledge", "scoutfoxgo-overview.md"),
+    title: "ScoutFoxGo Overview",
+    category: "ScoutFoxGo",
+    tags: ["company", "mission", "product", "overview"],
+    version: "1.0",
+  },
+  {
+    path: join(here, "knowledge", "scoutfoxgo-product-tech.md"),
+    title: "ScoutFoxGo Product & Technology",
+    category: "ScoutFoxGo",
+    tags: ["product", "backend", "tech-stack", "ai"],
+    version: "1.0",
+  },
+  {
+    path: join(here, "knowledge", "scoutfoxgo-business-model.md"),
+    title: "ScoutFoxGo Business Model & Roadmap",
+    category: "ScoutFoxGo",
+    tags: ["business", "roadmap", "partners", "revenue"],
+    version: "1.0",
+  },
+  {
     path: join(here, "knowledge", "missing-modules-addendum.md"),
     title: "Missing Modules Addendum",
     category: "Product Spec",
