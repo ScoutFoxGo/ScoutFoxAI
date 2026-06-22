@@ -52,6 +52,15 @@ deploy. It's *designed* to also plug into `scoutfoxgo.com` later (via `userId` /
 language and the travel keys in `API_KEYS.md` for live inventory/booking; until then
 it runs end‑to‑end on mock data.
 
+**Scout's own brain — runs on both Claude and OpenAI.** The brain isn't tied to one
+vendor. `think()` in `server/llm.js` picks an available provider and, if a call
+fails (outage, rate limit, bad key), **automatically falls back to the other** — so
+Scout keeps thinking as long as *any* provider is configured, and runs fully offline
+(labelled mock) when none is. Set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`;
+`SCOUT_BRAIN` picks the order (`auto` = Claude first, OpenAI fallback). The whole
+brain — assistant voice, NL trip parsing, insight distillation — flows through it.
+Check it live at `GET /api/brain`.
+
 Everything below documents the engines Scout orchestrates.
 
 ---

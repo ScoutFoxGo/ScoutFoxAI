@@ -22,7 +22,7 @@ import cors from "cors";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { invokeLLM, MODEL_CATALOG } from "./llm.js";
+import { invokeLLM, MODEL_CATALOG, availableBrains } from "./llm.js";
 import { saveComparison, getComparison, recentComparisons } from "./store.js";
 import lmsRouter from "./lms/routes.js";
 import scoutRouter from "./scoutfoxgo/routes.js";
@@ -95,14 +95,27 @@ app.get("/api", (_req, res) => {
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb"],
       scout: ["POST /api/scout/mood/adapt", "POST /api/scout/scribe/report", "POST /api/scout/cards/generate"],
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
-      health: ["GET /api/health", "GET /api/status", "GET /api/selftest"],
+      health: ["GET /api/health", "GET /api/status", "GET /api/selftest", "GET /api/brain"],
     },
     docs: "See HANDOFF.md in the repository.",
   });
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, anthropic: Boolean(process.env.ANTHROPIC_API_KEY) });
+  res.json({ ok: true, anthropic: Boolean(process.env.ANTHROPIC_API_KEY), openai: Boolean(process.env.OPENAI_API_KEY), brains: availableBrains() });
+});
+
+// Scout's own brain: which LLM providers it can run on + the active order.
+app.get("/api/brain", (_req, res) => {
+  const brains = availableBrains();
+  const pref = String(process.env.SCOUT_BRAIN || "auto").toLowerCase();
+  res.json({
+    runs_on: brains.length ? brains : ["mock (no provider configured)"],
+    preference: pref,
+    order: pref === "openai" ? ["openai", "claude"] : ["claude", "openai"],
+    fallback: brains.length > 1 ? "automatic — if one provider fails, Scout falls back to the other" : brains.length === 1 ? `single provider (${brains[0]}); add the other for failover` : "none — running on offline mock",
+    openai_model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+  });
 });
 
 // A one-glance "is it really live?" report — which keys were picked up and what's
@@ -110,8 +123,11 @@ app.get("/api/health", (_req, res) => {
 function integrationStatus() {
   const has = (k) => Boolean(process.env[k]);
   const stripe = !process.env.STRIPE_SECRET_KEY ? "mock" : process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE" : "test";
+  const brains = [has("ANTHROPIC_API_KEY") && "claude", has("OPENAI_API_KEY") && "openai"].filter(Boolean);
   return {
+    brain: brains.length ? `live (${brains.join(" + ")})` : "mock",
     language_anthropic: has("ANTHROPIC_API_KEY") ? "live" : "mock",
+    language_openai: has("OPENAI_API_KEY") ? "live" : "mock",
     scoutfoxgo_data: has("SCOUTFOXGO_DATA_URL") ? "live" : "sample-seed",
     flights_stays_duffel: has("DUFFEL_API_KEY") ? "live" : "mock",
     hotels_booking: has("BOOKING_API_KEY") ? "live" : "mock",

@@ -14,7 +14,7 @@ import { compare as compareDestinations } from "../destination/intel.js";
 import { recordOutcome } from "../learning/loop.js";
 import { createCartFromPlan } from "../booking/cart.js";
 import { savePlan } from "../plans/store.js";
-import { invokeLLM } from "../llm.js";
+import { think, availableBrains } from "../llm.js";
 import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
 import { getSession, saveSession, resetSession, pushMessage } from "./session.js";
 
@@ -194,12 +194,13 @@ function draftReply(kind, s, data = {}) {
   return "Tell me a bit more and I'll shape the plan around it.";
 }
 
-// Optional voice polish — only when a real model is wired up; never invents facts.
+// Optional voice polish — runs on Scout's own brain (Claude OR OpenAI, whichever
+// is configured, with fallback). Skipped entirely when no provider is set. Never
+// invents facts.
 async function polish(draft, s) {
-  if (!process.env.ANTHROPIC_API_KEY) return draft;
+  if (!availableBrains().length) return draft;
   try {
-    const res = await invokeLLM({
-      modelKey: "claude_opus_4_8",
+    const res = await think({
       maxTokens: 220,
       system: SCOUT_SYSTEM_PROMPT,
       prompt:

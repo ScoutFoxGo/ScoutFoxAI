@@ -9,12 +9,10 @@
 // composition are deterministic so plans are explainable and the engine runs
 // fully offline. Booking options come through the one integration interface.
 
-import { invokeLLM } from "../llm.js";
+import { think, availableBrains } from "../llm.js";
 import { gatherOptions } from "../booking/index.js";
 import { getFamilyProfile } from "../scoutfoxgo/data.js";
 import { SCOUT_SYSTEM_PROMPT, RANKING_WEIGHTS, confidenceLabel } from "../scout/persona.js";
-
-const MODEL = "claude_opus_4_8";
 
 // Stable pseudo-random in [0,1) from a string (quality/novelty proxies until
 // real ratings are wired in).
@@ -49,20 +47,18 @@ export async function understand(input = {}) {
     hard_nos: [],
   };
 
-  // Optional AI enrichment — only when a real model is wired up.
+  // Optional AI enrichment — runs on Scout's own brain (Claude OR OpenAI).
   try {
-    if (input.request) {
-      const probe = await invokeLLM({ modelKey: MODEL, prompt: "ping", maxTokens: 8 });
-      if (!probe.mocked) {
-        const res = await invokeLLM({
-          modelKey: MODEL,
-          maxTokens: 400,
-          system: SCOUT_SYSTEM_PROMPT,
-          prompt:
-            `Extract structured trip intent from: "${input.request}". Return ONLY JSON ` +
-            `{"destination":str,"days":int,"budget":"Low"|"Medium"|"Higher",` +
-            `"pace":"relaxed"|"balanced"|"adventurous","must_haves":[str],"hard_nos":[str]}.`,
-        });
+    if (input.request && availableBrains().length) {
+      const res = await think({
+        maxTokens: 400,
+        system: SCOUT_SYSTEM_PROMPT,
+        prompt:
+          `Extract structured trip intent from: "${input.request}". Return ONLY JSON ` +
+          `{"destination":str,"days":int,"budget":"Low"|"Medium"|"Higher",` +
+          `"pace":"relaxed"|"balanced"|"adventurous","must_haves":[str],"hard_nos":[str]}.`,
+      });
+      if (!res.mocked) {
         const m = res.text.match(/\{[\s\S]*\}/);
         if (m) Object.assign(intent, pick(JSON.parse(m[0]), ["destination", "days", "budget", "pace", "must_haves", "hard_nos"]));
       }

@@ -5,7 +5,7 @@
 // planning insights, then store those in the closed corpus so the tutor and the
 // team can use them. Deterministic fallback works offline (mock mode).
 
-import { invokeLLM, researchLLM } from "../llm.js";
+import { think, availableBrains, researchLLM } from "../llm.js";
 import { addLesson, listLessons } from "../lms/corpus.js";
 import { SCOUT_SYSTEM_PROMPT } from "../scout/persona.js";
 import { knowledge } from "./loop.js";
@@ -43,19 +43,17 @@ export async function learnInsights() {
   const avoid = k.avoid.map((r) => `${r.tag} (${Math.round(r.acceptance * 100)}%)`).join(", ");
   let insight = `Across ${k.interactions} interactions, families accept most: ${works}.` + (avoid ? ` They tend to skip: ${avoid}.` : "");
 
-  // Prompt-based refinement when a real model is wired up.
+  // Prompt-based refinement on Scout's own brain (Claude OR OpenAI).
   try {
-    const probe = await invokeLLM({ modelKey: "claude_opus_4_8", prompt: "ping", maxTokens: 8 });
-    if (!probe.mocked) {
-      const res = await invokeLLM({
-        modelKey: "claude_opus_4_8",
+    if (availableBrains().length) {
+      const res = await think({
         maxTokens: 400,
         system: SCOUT_SYSTEM_PROMPT,
         prompt:
           `From this acceptance data, write 2-3 concise, reusable planning insights ` +
           `for future family recommendations.\nWorks best: ${works}\nSkipped: ${avoid || "(none yet)"}`,
       });
-      if (res.text?.trim()) insight = res.text.trim();
+      if (res.text?.trim() && !res.mocked) insight = res.text.trim();
     }
   } catch {
     /* keep the deterministic insight */

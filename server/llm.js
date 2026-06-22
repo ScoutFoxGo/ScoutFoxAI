@@ -55,8 +55,13 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
       return { text: mockAnswer(entry.label, prompt), model: entry.label, mocked: true };
 
     // To make these real: construct the provider's client and return its text.
-    // e.g. case "openai": return { ...(await callOpenAI(...)), model: entry.label };
     case "openai":
+      if (process.env.OPENAI_API_KEY) {
+        return { ...(await callOpenAI(entry.apiModel, prompt, system, maxTokens)), model: entry.label };
+      }
+      requireLive(`${entry.label} (OPENAI_API_KEY)`);
+      return { text: mockAnswer(entry.label, prompt), model: entry.label, mocked: true };
+
     case "google":
     case "xai":
     case "perplexity":
@@ -64,6 +69,57 @@ export async function invokeLLM({ modelKey, prompt, system, maxTokens = 2048 }) 
       requireLive(`${entry.label} provider`); // throws in LIVE_ONLY mode
       return { text: mockAnswer(entry.label, prompt), model: entry.label, mocked: true };
   }
+}
+
+// --- Scout's own brain: provider-agnostic, RUNS ON BOTH Claude and OpenAI -------
+//
+// `think()` is what the Scout brain (assistant, decision engine, distillation)
+// calls instead of pinning a single vendor. It picks an available provider, and if
+// that call fails (outage, rate limit, bad key) it automatically falls back to the
+// other — so Scout keeps thinking as long as ANY provider is configured, and runs
+// fully offline (labelled mock) when none is. Order is controlled by SCOUT_BRAIN
+// (claude | openai | auto). Default auto = Claude primary, OpenAI fallback.
+
+const OPENAI_BRAIN_MODEL = () => process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+export function availableBrains() {
+  const list = [];
+  if (process.env.ANTHROPIC_API_KEY) list.push("claude");
+  if (process.env.OPENAI_API_KEY) list.push("openai");
+  return list;
+}
+
+function brainOrder(prefer) {
+  const pref = String(prefer || process.env.SCOUT_BRAIN || "auto").toLowerCase();
+  if (pref === "openai") return ["openai", "claude"];
+  if (pref === "claude") return ["claude", "openai"];
+  return ["claude", "openai"]; // auto
+}
+
+export async function think({ prompt, system, maxTokens = 600, prefer } = {}) {
+  const order = brainOrder(prefer);
+  let lastErr = null;
+  let usedFallback = false;
+  for (let i = 0; i < order.length; i++) {
+    const p = order[i];
+    try {
+      if (p === "claude" && anthropic) {
+        const r = await callAnthropic("claude-opus-4-8", prompt, system, maxTokens);
+        return { ...r, provider: "claude", model: "Claude Opus 4.8", fallback: usedFallback };
+      }
+      if (p === "openai" && process.env.OPENAI_API_KEY) {
+        const model = OPENAI_BRAIN_MODEL();
+        const r = await callOpenAI(model, prompt, system, maxTokens);
+        return { ...r, provider: "openai", model, fallback: usedFallback };
+      }
+      continue; // provider not configured — try the next
+    } catch (e) {
+      lastErr = e;
+      usedFallback = true; // primary failed; the next attempt is a fallback
+    }
+  }
+  requireLive("Scout brain (ANTHROPIC_API_KEY or OPENAI_API_KEY)"); // throws in LIVE_ONLY
+  return { text: mockAnswer("Scout", prompt), model: "Scout (mock)", provider: "mock", mocked: true, error: lastErr?.message };
 }
 
 /**
@@ -118,6 +174,21 @@ async function callAnthropic(apiModel, prompt, system, maxTokens) {
     .map((b) => b.text)
     .join("");
   return { text, mocked: false };
+}
+
+// OpenAI Chat Completions via fetch (no extra SDK). Real when OPENAI_API_KEY set.
+async function callOpenAI(apiModel, prompt, system, maxTokens) {
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: prompt });
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: apiModel, messages, max_tokens: maxTokens }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`OpenAI ${r.status}: ${j.error?.message || "error"}`);
+  return { text: j.choices?.[0]?.message?.content || "", mocked: false };
 }
 
 // Deterministic, clearly-labelled placeholder so the comparison UI is fully
