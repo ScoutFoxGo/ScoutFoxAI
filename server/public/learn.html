@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout Guide — Learn</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 20px; display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:17px; margin:0; }
+  header p { margin:0; color:var(--muted); font-size:12px; }
+  header .who { margin-left:auto; font-size:12px; color:var(--muted); }
+  header input { font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; width:120px; }
+  main { max-width:760px; margin:0 auto; padding:20px 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  .courses { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .course { border:1px solid var(--line); border-radius:11px; padding:12px; cursor:pointer; transition:border-color .15s, transform .1s; }
+  .course:hover { border-color:var(--fox); }
+  .course:active { transform:scale(.99); }
+  .course b { font-size:14px; } .course .d { color:var(--muted); font-size:12px; margin-top:4px; }
+  .prog { height:9px; background:var(--line); border-radius:99px; overflow:hidden; margin:8px 0; }
+  .prog > div { height:100%; background:var(--fox); transition:width .4s; }
+  .muted { color:var(--muted); font-size:12.5px; }
+  .lesson .kp { margin:8px 0 0; padding-left:18px; }
+  .lesson .kp li { font-size:13.5px; margin:3px 0; }
+  .q { border-top:1px solid var(--line); padding:12px 0; }
+  .q .qt { font-weight:600; font-size:14px; margin-bottom:8px; }
+  .choice { display:block; padding:8px 10px; border:1px solid var(--line); border-radius:9px; margin:6px 0; cursor:pointer; font-size:13.5px; }
+  .choice:hover { border-color:var(--fox); }
+  .choice input { margin-right:8px; }
+  .choice.correct { background:#dcfce7; border-color:#86efac; }
+  .choice.wrong { background:#fee2e2; border-color:#fca5a5; }
+  button { background:var(--fox); color:#fff; border:0; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { background:var(--fox-dark); }
+  button:disabled { opacity:.5; cursor:default; }
+  .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .cert { background:#fff7f3; border:1px solid #f6d9c9; border-radius:12px; padding:16px; text-align:center; }
+  .cert .big { font-size:18px; font-weight:700; color:var(--fox-dark); }
+  .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:#dbeafe; color:#1e40af; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🦊</span>
+  <div><h1>Scout Guide</h1><p>Learn from Scout's closed knowledge base</p></div>
+  <span class="who">you: <input id="uid" value="learner1" /></span>
+</header>
+<main>
+  <div class="card" id="courseCard">
+    <h2>Courses</h2>
+    <div class="muted" style="margin-bottom:10px">Pick a course. Scout teaches the weakest topic first and quizzes you to track mastery.</div>
+    <div class="courses" id="courses"></div>
+  </div>
+  <div id="stage"></div>
+</main>
+<script>
+const API = location.origin + "/api/lms";
+const uid = () => document.getElementById("uid").value.trim() || "learner1";
+let current = null;
+const esc = s => String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function loadCourses(){
+  const r = await (await fetch(`${API}/courses`)).json();
+  document.getElementById("courses").innerHTML = (r.courses||[]).map(c=>
+    `<div class="course" onclick="open_('${c.id}')"><b>${esc(c.title)}</b><div class="d">${esc(c.description||'')}</div></div>`
+  ).join("") || "<div class='muted'>No courses yet — seed knowledge first.</div>";
+}
+
+async function open_(id){
+  current = id;
+  await fetch(`${API}/courses/${id}/enroll`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:uid()})});
+  await showProgress();
+  next();
+}
+
+async function showProgress(){
+  const p = await (await fetch(`${API}/courses/${current}/progress?userId=${encodeURIComponent(uid())}`)).json();
+  const stage = document.getElementById("stage");
+  let html = `<div class="card"><h2>${esc(p.title)} <span class="badge">${p.completed}/${p.lessons} lessons · ${Math.round((p.mastery||0)*100)}% mastery</span></h2>
+    <div class="prog"><div style="width:${p.percent_complete||0}%"></div></div>
+    <div class="muted">${p.percent_complete||0}% complete · pass bar ${Math.round(p.passing_mastery*100)}% mastery</div>`;
+  if (p.passed && p.certificate) {
+    html += `<div class="cert" style="margin-top:12px"><div class="big">🏆 Certificate earned</div>
+      <div class="muted">${esc(p.certificate.course)} · ${Math.round(p.certificate.mastery*100)}% mastery · ${new Date(p.certificate.issued_at).toLocaleDateString()}</div></div>`;
+  }
+  html += `</div><div id="step"></div>`;
+  stage.innerHTML = html;
+}
+
+async function next(){
+  const step = document.getElementById("step");
+  if(!step) return;
+  step.innerHTML = "<div class='muted'>Loading next step…</div>";
+  const n = await (await fetch(`${API}/courses/${current}/next?userId=${encodeURIComponent(uid())}`)).json();
+  if(n.type === "done"){ step.innerHTML = `<div class="card"><h2>✅ Course complete</h2><div class="muted">${esc(n.reason)}</div></div>`; showProgress(); return; }
+  if(n.type === "empty"){ step.innerHTML = `<div class="card muted">${esc(n.reason)}</div>`; return; }
+  renderLesson(n);
+}
+
+function renderLesson(n){
+  const L = n.lesson;
+  const kp = (L.key_points||[]).length ? `<ul class="kp">${L.key_points.map(k=>`<li>${esc(k)}</li>`).join("")}</ul>` : "";
+  const quiz = (n.quiz||[]).map((q,i)=>`
+    <div class="q" data-i="${i}">
+      <div class="qt">${i+1}. ${esc(q.q)}</div>
+      ${q.choices.map((c,j)=>`<label class="choice"><input type="radio" name="q${i}" value="${j}">${esc(c)}</label>`).join("")}
+    </div>`).join("");
+  document.getElementById("step").innerHTML = `
+    <div class="card lesson">
+      <div class="muted">${n.type === "review" ? "🔁 Review" : "📘 Lesson"} · ${esc(L.topic)}</div>
+      <h2>${esc(L.title)}</h2>
+      <div style="font-size:14px;line-height:1.5">${esc(L.summary||"")}</div>
+      ${kp}
+      <div style="margin-top:14px"><b>Quick check</b></div>
+      ${quiz || "<div class='muted'>No quiz for this lesson.</div>"}
+      <div style="margin-top:12px"><button onclick='grade(${JSON.stringify(L.id)}, ${ (n.quiz||[]).length })'>Submit</button>
+      <button class="ghost" onclick="next()">Skip</button></div>
+      <div id="result" class="muted" style="margin-top:10px"></div>
+    </div>`;
+}
+
+async function grade(lessonId, qCount){
+  const answers = [];
+  for(let i=0;i<qCount;i++){ const sel = document.querySelector(`input[name="q${i}"]:checked`); answers.push(sel?Number(sel.value):-1); }
+  const r = await (await fetch(`${API}/courses/${current}/submit`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:uid(),lessonId,answers})})).json();
+  // mark choices
+  (r.results||[]).forEach((res,i)=>{
+    const q = document.querySelector(`.q[data-i="${i}"]`); if(!q) return;
+    const labels = q.querySelectorAll(".choice");
+    labels[res.answer_index]?.classList.add("correct");
+    const chosen = q.querySelector(`input[name="q${i}"]:checked`);
+    if(chosen && Number(chosen.value)!==res.answer_index) chosen.closest(".choice").classList.add("wrong");
+  });
+  document.getElementById("result").innerHTML = `Scored ${Math.round((r.score||0)*100)}% · topic mastery now ${Math.round((r.mastery||0)*100)}% · next review in ${r.next_review_in_days||1} day(s). <button class="ghost" style="padding:5px 10px" onclick="next()">Next →</button>`;
+  showProgress();
+}
+
+document.getElementById("uid").addEventListener("change", loadCourses);
+loadCourses();
+</script>
+</body>
+</html>
