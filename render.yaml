@@ -5,14 +5,18 @@ services:
   - type: web
     name: scoutfoxai
     runtime: node
-    plan: starter
+    # Free tier deploys with no credit card (it sleeps after ~15 min idle and wakes
+    # on the next request). Switch to "starter" for an always-on instance later.
+    plan: free
     buildCommand: npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      # Set this in the Render dashboard (Environment tab) to get real Claude
-      # responses. Without it the app runs in labelled mock mode.
-      - key: ANTHROPIC_API_KEY
+      # Set these in the Render dashboard (Environment tab) to go live. Without a
+      # brain key the app still runs in labelled mock mode.
+      - key: ANTHROPIC_API_KEY   # Scout's brain (or use OPENAI_API_KEY / LOCAL_LLM_URL)
+        sync: false
+      - key: OPENAI_API_KEY      # optional backup brain
         sync: false
     # Optional: a persistent disk so saved/shared comparisons survive deploys
     # and restarts (the JSON store writes to server/comparisons.json).
