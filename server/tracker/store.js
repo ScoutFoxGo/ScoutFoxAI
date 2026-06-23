@@ -10,7 +10,7 @@ import { load, save } from "../lms/jsondb.js";
 const FILE = "tracker";
 const newId = () => "t_" + Math.random().toString(36).slice(2, 9);
 export const STATUSES = ["todo", "doing", "done"];
-const DEFAULT_PHASES = ["Dev & Build", "Launch & Beta", "Marketing & Partnerships", "Mobile"];
+const DEFAULT_PHASES = ["Dev & Build", "AI Models", "Compliance & GDPR", "Launch & Beta", "Marketing & Partnerships", "Mobile"];
 
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 const stamp = () => new Date().toISOString();
@@ -26,6 +26,24 @@ function seedBoard() {
   add("Connect a custom domain (api.scoutfox.ai / scoutfoxai.com)", "Dev & Build");
   add("Seed Scout's startup knowledge (npm run seed:knowledge)", "Dev & Build", "done");
   add("Self-hosted brain option wired (LOCAL_LLM_URL, Claude/OpenAI backup)", "Dev & Build", "done");
+  add("Deploy live on Render (scoutfoxai.onrender.com)", "Dev & Build", "done");
+
+  // AI Models — add 4 more providers to the brain/comparison (Claude + OpenAI exist)
+  add("Wire Google Gemini adapter (real, key-gated, mock-safe)", "AI Models");
+  add("Wire xAI Grok adapter", "AI Models");
+  add("Wire Perplexity adapter", "AI Models");
+  add("Wire a self-hosted open model (Llama/Mistral via Ollama)", "AI Models");
+  add("Multi-model comparison UI: fan-out → synthesis → AI judge", "AI Models");
+  add("Per-model routing: cheap model for parsing, strong model for reasoning", "AI Models");
+
+  // Compliance & GDPR — the gatekeepers, especially before data leaves to any model
+  add("PII gatekeeper: redact/minimize personal data BEFORE sending to any external AI model", "Compliance & GDPR");
+  add("Sign DPAs with each AI provider + enable training opt-out (Anthropic/OpenAI/Gemini/etc.)", "Compliance & GDPR");
+  add("Consent gate: capture explicit consent for AI processing + data use", "Compliance & GDPR");
+  add("Right to access / export: endpoint to export a user's data", "Compliance & GDPR");
+  add("Right to erasure: delete a user's data across all stores on request", "Compliance & GDPR");
+  add("Children's data: parental consent + special-category handling (GDPR-K / COPPA)", "Compliance & GDPR");
+  add("Privacy policy + Records of Processing + EU data-residency review", "Compliance & GDPR");
 
   add("Recruit Founding Families beta testers", "Launch & Beta");
   add("Collect feedback + validate the planning value", "Launch & Beta");
