@@ -50,7 +50,7 @@ async function load(){
   const best = p.top_pick;
   if(best) html += `<div class="pick"><div class="lbl">⭐ Top pick</div><b>${esc(best.title)}</b><div class="why">${esc(best.why_fits||"")}</div><div class="why">best for: ${esc(best.best_for||"—")} · ${esc(best.estimated_cost||"")}</div></div>`;
   if(p.estimate) html += `<div class="est">Estimated all-in ~$${p.estimate.total} (flight $${p.estimate.flight} + stay $${p.estimate.stay_per_night}/night × ${p.estimate.nights} + activities $${p.estimate.activities})</div>`;
-  html += `<div class="cta"><a href="/assistant.html">Plan a trip like this →</a></div></div>`;
+  html += `<div class="cta"><a href="${API}/plans/${id}/calendar.ics">📅 Add to calendar</a> <a href="/assistant.html" style="margin-left:8px">Plan a trip like this →</a></div></div>`;
   main.innerHTML = html;
 }
 load();

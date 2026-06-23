@@ -78,7 +78,7 @@ app.get("/api", (_req, res) => {
     endpoints: {
       assistant: ["POST /api/assistant/message", "GET /api/assistant/session/:id", "POST /api/assistant/session/:id/reset", "POST /api/assistant/session/:id/feedback"],
       checkout: ["POST /api/checkout/cart", "GET /api/checkout/cart/:id", "POST /api/checkout/cart/:id/pay"],
-      plans: ["POST /api/plans", "GET /api/plans/:id"],
+      plans: ["POST /api/plans", "GET /api/plans/:id", "GET /api/plans/:id/calendar.ics"],
       decision: ["POST /api/decision/plan", "POST /api/decision/recommend", "POST /api/decision/refine"],
       match: ["POST /api/match/score", "POST /api/match/predict", "POST /api/match/behavior", "POST /api/match/rank"],
       persona: ["POST /api/persona/classify"],
@@ -92,7 +92,7 @@ app.get("/api", (_req, res) => {
       weather: ["GET /api/weather/:place"],
       tracker: ["GET /api/tracker", "POST /api/tracker/items", "PATCH /api/tracker/items/:id", "DELETE /api/tracker/items/:id", "POST /api/tracker/phases", "POST /api/tracker/reset"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
-      companion: ["POST /api/companion/alerts"],
+      companion: ["POST /api/companion/alerts", "POST /api/companion/notify"],
       learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "GET /api/learning/state", "POST /api/learning/distill", "POST /api/learning/research", "GET /api/learning/explain", "GET /api/learning/seed", "GET /api/learning/anomalies", "POST /api/learning/forget", "POST /api/learning/reset"],
       guide: ["POST /api/lms/tutor", "POST /api/lms/ingest", "GET /api/lms/kb", "GET /api/lms/lessons"],
       lms_core: ["GET /api/lms/courses", "POST /api/lms/courses", "GET /api/lms/courses/:id", "POST /api/lms/courses/:id/enroll", "GET /api/lms/courses/:id/next", "POST /api/lms/courses/:id/submit", "GET /api/lms/courses/:id/progress", "GET /api/lms/learner/:userId", "GET /api/lms/learner/:userId/due"],

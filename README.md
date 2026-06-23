@@ -274,7 +274,12 @@ auto‑distilled at 10 interactions.)*
   holidays, venue type). In‑house heuristics.
 - **Scout Companion™** — `POST /api/companion/alerts { tripId, weather? }`:
   proactive trip alerts — rain → indoor swap, heat → cooling tips, nap windows
-  for little kids, packing reminders, and crowd timing.
+  for little kids, packing reminders, and crowd timing. `POST /api/companion/notify
+  { tripId, to, weather? }` **texts** the top alerts to a family via Twilio (live
+  with Twilio keys, labelled simulated otherwise).
+- **Calendar export** — `GET /api/plans/:id/calendar.ics` turns a saved plan into a
+  standard `.ics` you can add to Google / Apple / Outlook calendars. No API key, no
+  OAuth — universal. "Add to calendar" button on the shared plan page.
 
 ## Finder engines (`server/finder/`)
 
