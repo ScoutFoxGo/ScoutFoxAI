@@ -5,9 +5,10 @@ services:
   - type: web
     name: scoutfoxai
     runtime: node
-    # Free tier deploys with no credit card (it sleeps after ~15 min idle and wakes
-    # on the next request). Switch to "starter" for an always-on instance later.
-    plan: free
+    # Starter = always-on instance (does not sleep). Requires a payment method on
+    # the Render account. Switch to "free" if you want a no-card instance that
+    # sleeps after ~15 min idle.
+    plan: starter
     buildCommand: npm run build
     startCommand: npm start
     healthCheckPath: /api/health
