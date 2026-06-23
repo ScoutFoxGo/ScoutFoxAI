@@ -45,6 +45,7 @@ import checkoutRouter from "./booking/checkout.routes.js";
 import plansRouter from "./plans/routes.js";
 import weatherRouter from "./weather/routes.js";
 import trackerRouter from "./tracker/routes.js";
+import insightsRouter from "./insights/routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -91,6 +92,7 @@ app.get("/api", (_req, res) => {
       finder: ["GET /api/finder/categories", "POST /api/finder/:category"],
       weather: ["GET /api/weather/:place"],
       tracker: ["GET /api/tracker", "POST /api/tracker/items", "PATCH /api/tracker/items/:id", "DELETE /api/tracker/items/:id", "POST /api/tracker/phases", "POST /api/tracker/reset"],
+      insights: ["POST /api/insights/feedback", "GET /api/insights/feedback", "GET /api/insights/metrics", "GET /api/insights/weekly"],
       crowdsense: ["POST /api/crowdsense/predict", "POST /api/crowdsense/best-day"],
       companion: ["POST /api/companion/alerts", "POST /api/companion/notify"],
       learning: ["POST /api/learning/outcome", "GET /api/learning/knowledge", "GET /api/learning/state", "POST /api/learning/distill", "POST /api/learning/research", "GET /api/learning/explain", "GET /api/learning/seed", "GET /api/learning/anomalies", "POST /api/learning/forget", "POST /api/learning/reset"],
@@ -285,6 +287,10 @@ app.use("/api/weather", weatherRouter);
 
 // Live, self-owned project tracker (UI at /tracker.html) — replaces a static mirror.
 app.use("/api/tracker", trackerRouter);
+
+// Growth insights: user feedback + a weekly review that turns behavior + feedback
+// into concrete improvements (talk to users, measure, improve — continuously).
+app.use("/api/insights", insightsRouter);
 
 // In production, serve the built frontend from this same service so the whole
 // app lives behind one domain. The static files are produced by `web/` build.

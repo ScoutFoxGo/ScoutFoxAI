@@ -267,6 +267,24 @@ in‑house. *(Demonstrated: teaching accept‑shaded / reject‑long‑day moved
 activity up and a long‑day one down with no code change, and the durable insight
 auto‑distilled at 10 interactions.)*
 
+## Growth insights — the weekly improvement loop (`server/insights/`)
+
+Operationalizes the founder habit behind most durable startups: **talk to users
+every week, measure behavior, ship small improvements continuously.**
+
+- **Feedback** (`feedback.js`) — `POST /api/insights/feedback { rating, nps?,
+  comment?, area? }` captures qualitative signal beyond the loop's 👍/👎.
+  `GET /api/insights/metrics` summarizes a window (avg rating, NPS, comment themes,
+  low-rated sessions).
+- **Weekly review** (`digest.js`) — `GET /api/insights/weekly` assembles what Scout
+  measured (acceptance, segments, *what changed* via anomalies), what users said
+  (feedback + extracted themes), and what it learned (distilled insights), then
+  derives a **prioritized list of concrete improvements to ship this week**. Optional
+  `?narrate=1` writes a founder-style update on the dual brain.
+
+*(Demonstrated: from 3 feedback notes + behavior, it surfaced the recurring "pricing"
+theme, flagged a low-acceptance tag, and emitted ranked weekly actions.)*
+
 ## Predictive intelligence (`server/crowdsense/`, `server/companion/`)
 
 - **Scout CrowdSense™** — `POST /api/crowdsense/predict` and `/best-day`: predicts
