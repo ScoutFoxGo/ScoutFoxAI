@@ -102,7 +102,7 @@ app.get("/api", (_req, res) => {
       admin: ["GET /api/admin/analytics", "GET /api/admin/sessions", "GET /api/admin/traces"],
       health: ["GET /api/health", "GET /api/status", "GET /api/selftest", "GET /api/brain"],
     },
-    pages: ["/assistant.html", "/learn.html", "/tracker.html", "/demo.html", "/checkout.html", "/plan.html"],
+    pages: ["/command.html", "/assistant.html", "/learn.html", "/tracker.html", "/demo.html", "/checkout.html", "/plan.html"],
     docs: "See HANDOFF.md in the repository.",
   });
 });

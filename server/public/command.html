@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scout Fox — Command Center</title>
+<style>
+  :root { --fox:#E8662A; --fox-dark:#C24E1A; --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --bg:#faf9f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:18px 22px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:19px; margin:0; }
+  header p { margin:0; color:var(--muted); font-size:12.5px; }
+  .status { margin-left:auto; display:flex; gap:14px; align-items:center; font-size:12.5px; color:var(--muted); flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#9ca3af; display:inline-block; margin-right:5px; }
+  .dot.on { background:#16a34a; } .dot.warn { background:#f59e0b; }
+  main { max-width:980px; margin:0 auto; padding:24px 18px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:22px 0 10px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  a.card { display:block; background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; text-decoration:none; color:var(--ink); transition:border-color .15s, transform .1s, box-shadow .15s; }
+  a.card:hover { border-color:var(--fox); transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.05); }
+  a.card .ico { font-size:24px; }
+  a.card b { display:block; margin:8px 0 3px; font-size:15px; }
+  a.card span { color:var(--muted); font-size:12.5px; line-height:1.4; }
+  .pills { display:flex; flex-wrap:wrap; gap:8px; }
+  .pill { background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 13px; font-size:12.5px; text-decoration:none; color:var(--ink); }
+  .pill:hover { border-color:var(--fox); color:var(--fox-dark); }
+  footer { max-width:980px; margin:8px auto 30px; padding:0 18px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:26px">🦊</span>
+  <div><h1>Scout Fox — Command Center</h1><p>Plan Less. Explore More.</p></div>
+  <div class="status" id="status"><span><span class="dot" id="d-live"></span><span id="t-live">checking…</span></span></div>
+</header>
+<main>
+  <h2>Product</h2>
+  <div class="grid">
+    <a class="card" href="/assistant.html"><div class="ico">💬</div><b>Scout Assistant</b><span>Chat-plan a family trip — understand, plan, refine, book, share.</span></a>
+    <a class="card" href="/learn.html"><div class="ico">📘</div><b>Scout Guide</b><span>The LMS — courses, quizzes, mastery from Scout's own knowledge.</span></a>
+    <a class="card" href="/tracker.html"><div class="ico">📊</div><b>Project Tracker</b><span>Live project board — phases, tasks, progress.</span></a>
+    <a class="card" href="/demo.html"><div class="ico">🧭</div><b>Engine Demo</b><span>Decision engine, modes, harmony, destination compare, learning.</span></a>
+  </div>
+
+  <h2>Operate</h2>
+  <div class="pills">
+    <a class="pill" href="/api/status" target="_blank">⚙️ /api/status — live vs mock</a>
+    <a class="pill" href="/api/brain" target="_blank">🧠 /api/brain — which AI it runs on</a>
+    <a class="pill" href="/api/selftest" target="_blank">✅ /api/selftest — ping providers</a>
+    <a class="pill" href="/api/insights/weekly" target="_blank">📈 /api/insights/weekly — weekly review</a>
+    <a class="pill" href="/api" target="_blank">🗂️ /api — full endpoint index</a>
+    <a class="pill" href="/api/health" target="_blank">❤️ /api/health</a>
+  </div>
+
+  <h2>Live integrations</h2>
+  <div class="pills" id="integrations"><span class="muted">checking…</span></div>
+</main>
+<footer id="foot"></footer>
+<script>
+const API = location.origin + "/api";
+async function jget(p){ const r = await fetch(API+p); return r.json(); }
+(async()=>{
+  try {
+    const [h, s, b] = await Promise.all([jget("/health"), jget("/status").catch(()=>({})), jget("/brain").catch(()=>({}))]);
+    const live = h.ok;
+    document.getElementById("d-live").className = "dot " + (live ? "on" : "warn");
+    document.getElementById("t-live").textContent = live ? "● Live" : "starting…";
+    // brain
+    const brains = (h.brains&&h.brains.length) ? h.brains.join(" + ") : "mock";
+    const st = document.getElementById("status");
+    st.insertAdjacentHTML("beforeend", `<span><span class="dot ${h.brains&&h.brains.length?'on':'warn'}"></span>brain: ${brains}</span>`);
+    if (s.mode) st.insertAdjacentHTML("beforeend", `<span>mode: ${s.mode}</span>`);
+    // integrations
+    const ints = s.integrations||{};
+    const el = document.getElementById("integrations");
+    const entries = Object.entries(ints).filter(([k])=>k!=="brain");
+    el.innerHTML = entries.length ? entries.map(([k,v])=>`<span class="pill">${k.replace(/_/g,' ')}: <b style="color:${v==='live'||v==='test'||v==='LIVE'?'#16a34a':'#9ca3af'}">${v}</b></span>`).join("") : "<span class='muted'>—</span>";
+    document.getElementById("foot").textContent = `ScoutFoxAI · ${live?"deployed & healthy":"booting"} · ${location.host}`;
+  } catch(e){
+    document.getElementById("t-live").textContent = "API not reachable";
+    document.getElementById("d-live").className = "dot warn";
+  }
+})();
+</script>
+</body>
+</html>
